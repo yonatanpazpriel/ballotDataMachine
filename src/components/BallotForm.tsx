@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { PROSECUTION_KEYS, DEFENSE_KEYS, SCORE_LABELS, type ScoreKey } from "@/lib/constants";
+import { PROSECUTION_KEYS, DEFENSE_KEYS, type ScoreKey } from "@/lib/constants";
 import type { Tournament, OurSide, CreateBallotDTO, ScoreTotals } from "@/lib/types";
 import { computeTotals } from "@/lib/scoring";
 import { createBallot } from "@/lib/storage";
@@ -55,12 +55,7 @@ function ScoreRow({
   return (
     <div className="grid grid-cols-[1fr,auto] gap-2 items-start py-2 border-b last:border-0">
       <div className="space-y-1">
-        <Label className="text-xs font-medium text-foreground">
-          {scoreKey}
-          <span className="ml-2 text-muted-foreground font-normal">
-            {SCORE_LABELS[scoreKey]}
-          </span>
-        </Label>
+        <Label className="text-xs font-medium text-foreground">{scoreKey}</Label>
         {showName && (
           <Input
             placeholder="Name (required)"
