@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +7,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { PROSECUTION_KEYS, DEFENSE_KEYS, type ScoreKey } from "@/lib/constants";
-import type { Tournament, OurSide, CreateBallotDTO, ScoreTotals } from "@/lib/types";
+import type { Tournament, OurSide, CreateBallotDTO, ScoreTotals, Ballot } from "@/lib/types";
 import { computeTotals } from "@/lib/scoring";
-import { createBallot } from "@/lib/storage";
+import { createBallot, updateBallot } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
 interface ScoreData {
@@ -19,16 +19,29 @@ interface ScoreData {
 
 type ScoresState = Record<ScoreKey, ScoreData>;
 
-function initializeScores(): ScoresState {
+function buildScoresFromBallot(ballot?: Ballot): ScoresState {
   const scores: Partial<ScoresState> = {};
+
+  // Seed defaults
   for (const key of [...PROSECUTION_KEYS, ...DEFENSE_KEYS]) {
-    scores[key] = { score: "", name: "" };
+    scores[key] = { score: 0, name: "ENTER NAME" };
   }
+
+  if (ballot) {
+    for (const score of ballot.scores) {
+      scores[score.key] = {
+        score: score.score,
+        name: score.name ?? "ENTER NAME",
+      };
+    }
+  }
+
   return scores as ScoresState;
 }
 
 interface Props {
   tournament: Tournament;
+  ballot?: Ballot;
 }
 
 function ScoreRow({
@@ -41,6 +54,7 @@ function ScoreRow({
   scoreError,
   nameError,
   tabIndexBase,
+  labelAlign = "left",
 }: {
   scoreKey: ScoreKey;
   showName: boolean;
@@ -51,44 +65,57 @@ function ScoreRow({
   scoreError?: string;
   nameError?: string;
   tabIndexBase: number;
+  labelAlign?: "left" | "right";
 }) {
   return (
-    <div className="grid grid-cols-[1fr,auto] gap-2 items-start py-2 border-b last:border-0">
-      <div className="space-y-1">
-        <Label className="text-xs font-medium text-foreground">{scoreKey}</Label>
-        {showName && (
-          <Input
-            placeholder="Name (required)"
-            value={name}
-            onChange={(e) => onNameChange(e.target.value)}
-            tabIndex={tabIndexBase}
-            className={cn("h-8 text-sm", nameError && "border-destructive")}
-          />
+    <div className="space-y-2 border-b pb-3 last:border-0">
+      <Label
+        className={cn(
+          "text-xs font-medium text-foreground",
+          labelAlign === "right" && "block text-right",
         )}
-        {nameError && <p className="text-xs text-destructive">{nameError}</p>}
-      </div>
-      <div className="space-y-1 w-20">
-        <Input
-          type="number"
-          min={0}
-          max={10}
-          value={score}
-          onChange={(e) => {
-            const val = e.target.value;
-            if (val === "") {
-              onScoreChange("");
-            } else {
-              const num = parseInt(val, 10);
-              if (!isNaN(num)) {
-                onScoreChange(num);
+      >
+        {scoreKey}
+      </Label>
+      <div className="grid grid-cols-[minmax(0,1fr),120px] gap-3 items-center">
+        <div className="space-y-1">
+          {showName && (
+            <Input
+              placeholder="Name (required)"
+              value={name}
+              onChange={(e) => onNameChange(e.target.value)}
+              tabIndex={tabIndexBase}
+              className={cn("h-10 text-sm", nameError && "border-destructive")}
+            />
+          )}
+          {nameError && <p className="text-xs text-destructive">{nameError}</p>}
+        </div>
+        <div className="space-y-1">
+          <Input
+            type="number"
+            min={0}
+            max={10}
+            value={score}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "") {
+                onScoreChange("");
+              } else {
+                const num = parseInt(val, 10);
+                if (!isNaN(num)) {
+                  onScoreChange(num);
+                }
               }
-            }
-          }}
-          tabIndex={tabIndexBase + 1}
-          className={cn("h-8 text-center font-mono-scores", scoreError && "border-destructive")}
-          placeholder="0-10"
-        />
-        {scoreError && <p className="text-xs text-destructive">{scoreError}</p>}
+            }}
+            tabIndex={tabIndexBase + 1}
+            className={cn(
+              "h-10 text-center font-mono-scores",
+              scoreError && "border-destructive",
+            )}
+            placeholder="0-10"
+          />
+          {scoreError && <p className="text-xs text-destructive text-right">{scoreError}</p>}
+        </div>
       </div>
     </div>
   );
@@ -107,54 +134,109 @@ function ScoreGrid({
   onNameChange: (key: ScoreKey, value: string) => void;
   errors: Record<string, { score?: string; name?: string }>;
 }) {
-  // Tab order: all P rows first (top-to-bottom), then all D rows
+  // Build an aligned grid with explicit blank slots on the defense side
+  // to match the requested layout.
+  const alignedRows: Array<{ pKey?: ScoreKey; dKey?: ScoreKey }> = [
+    { pKey: "P. Open", dKey: "D. Open" },
+    { pKey: "P.Dx1: Atty", dKey: undefined },
+    { pKey: "P.Dx1: Witness", dKey: undefined },
+    { pKey: "P.Cx1: Witness", dKey: "D.Cx1: Atty" },
+
+    { pKey: "P.Dx2: Atty", dKey: undefined },
+    { pKey: "P.Dx2: Witness", dKey: undefined },
+    { pKey: "P.Cx2: Witness", dKey: "D.Cx2: Atty" },
+
+    { pKey: "P.Dx3: Atty", dKey: undefined },
+    { pKey: "P.Dx3: Witness", dKey: undefined },
+    { pKey: "P.Cx3: Witness", dKey: "D.Cx3: Atty" },
+
+    // Remaining defense rows in requested order, aligning P where specified
+    { pKey: undefined, dKey: "D.Dx1: Atty" },
+    { pKey: undefined, dKey: "D.Dx1: Witness" },
+    { pKey: "P.Cx1: Atty", dKey: "D.Cx1: Witness" },
+    { pKey: undefined, dKey: "D.Dx2: Atty" },
+    { pKey: undefined, dKey: "D.Dx2: Witness" },
+    { pKey: "P.Cx2: Atty", dKey: "D.Cx2: Witness" },
+    { pKey: undefined, dKey: "D.Dx3: Atty" },
+    { pKey: undefined, dKey: "D.Dx3: Witness" },
+    { pKey: "P.Cx3: Atty", dKey: "D.Cx3: Witness" },
+    { pKey: "P. Close", dKey: "D. Close" },
+  ];
+
+  // Append any remaining defense rows (shifted further down as blanks above consumed space).
+  const usedDefense = new Set(alignedRows.map((r) => r.dKey).filter(Boolean) as ScoreKey[]);
+  for (const key of DEFENSE_KEYS) {
+    if (!usedDefense.has(key)) {
+      alignedRows.push({ pKey: undefined, dKey: key });
+    }
+  }
+
+  // Tab order stays columnar; advance counters only when we render an input row.
   let pTabBase = 100;
   let dTabBase = 100 + PROSECUTION_KEYS.length * 2;
 
   return (
-    <div className="grid md:grid-cols-2 gap-6">
-      <div className="space-y-1">
-        <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground pb-2 border-b">
-          Prosecution Scores
-        </h3>
-        <div className="space-y-0">
-          {PROSECUTION_KEYS.map((key, idx) => (
-            <ScoreRow
-              key={key}
-              scoreKey={key}
-              showName={ourSide === "P"}
-              score={scores[key].score}
-              name={scores[key].name}
-              onScoreChange={(val) => onScoreChange(key, val)}
-              onNameChange={(val) => onNameChange(key, val)}
-              scoreError={errors[key]?.score}
-              nameError={errors[key]?.name}
-              tabIndexBase={pTabBase + idx * 2}
-            />
-          ))}
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-6">
+        <div className="bg-red-50 rounded-md px-3 py-2">
+          <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+            Prosecution Scores
+          </h3>
+        </div>
+        <div className="bg-blue-50 rounded-md px-3 py-2">
+          <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground text-right">
+            Defense Scores
+          </h3>
         </div>
       </div>
+      <div className="space-y-2">
+        {alignedRows.map((row, idx) => {
+          const pTab = row.pKey ? pTabBase : undefined;
+          const dTab = row.dKey ? dTabBase : undefined;
+          if (row.pKey) pTabBase += 2;
+          if (row.dKey) dTabBase += 2;
 
-      <div className="space-y-1">
-        <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground pb-2 border-b">
-          Defense Scores
-        </h3>
-        <div className="space-y-0">
-          {DEFENSE_KEYS.map((key, idx) => (
-            <ScoreRow
-              key={key}
-              scoreKey={key}
-              showName={ourSide === "D"}
-              score={scores[key].score}
-              name={scores[key].name}
-              onScoreChange={(val) => onScoreChange(key, val)}
-              onNameChange={(val) => onNameChange(key, val)}
-              scoreError={errors[key]?.score}
-              nameError={errors[key]?.name}
-              tabIndexBase={dTabBase + idx * 2}
-            />
-          ))}
-        </div>
+          return (
+            <div key={idx} className="grid md:grid-cols-2 gap-6">
+              <div className="bg-red-50 rounded-md px-3 py-2">
+                {row.pKey ? (
+                  <ScoreRow
+                    scoreKey={row.pKey}
+                    showName={ourSide === "P"}
+                    score={scores[row.pKey].score}
+                    name={scores[row.pKey].name}
+                    onScoreChange={(val) => onScoreChange(row.pKey!, val)}
+                    onNameChange={(val) => onNameChange(row.pKey!, val)}
+                    scoreError={errors[row.pKey]?.score}
+                    nameError={errors[row.pKey]?.name}
+                    tabIndexBase={pTab!}
+                  />
+                ) : (
+                  <div className="h-12" />
+                )}
+              </div>
+
+              <div className="bg-blue-50 rounded-md px-3 py-2">
+                {row.dKey ? (
+                  <ScoreRow
+                    scoreKey={row.dKey}
+                    showName={ourSide === "D"}
+                    score={scores[row.dKey].score}
+                    name={scores[row.dKey].name}
+                    onScoreChange={(val) => onScoreChange(row.dKey!, val)}
+                    onNameChange={(val) => onNameChange(row.dKey!, val)}
+                    scoreError={errors[row.dKey]?.score}
+                    nameError={errors[row.dKey]?.name}
+                  tabIndexBase={dTab!}
+                  labelAlign="right"
+                  />
+                ) : (
+                  <div className="h-12" />
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -209,19 +291,35 @@ function LiveSummary({ totals, className }: { totals: ScoreTotals; className?: s
   );
 }
 
-export function BallotForm({ tournament }: Props) {
+export function BallotForm({ tournament, ballot }: Props) {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [roundNumber, setRoundNumber] = useState<number | "">("");
-  const [judgeName, setJudgeName] = useState("");
-  const [prosecutionTeamNumber, setProsecutionTeamNumber] = useState("");
-  const [defenseTeamNumber, setDefenseTeamNumber] = useState("");
-  const [ourSide, setOurSide] = useState<OurSide>("P");
-  const [scores, setScores] = useState<ScoresState>(initializeScores);
+  const isEdit = Boolean(ballot);
+
+  const [roundNumber, setRoundNumber] = useState<number | "">(ballot ? ballot.roundNumber : "");
+  const [judgeName, setJudgeName] = useState(ballot?.judgeName ?? "");
+  const [prosecutionTeamNumber, setProsecutionTeamNumber] = useState(
+    ballot?.prosecutionTeamNumber ?? "",
+  );
+  const [defenseTeamNumber, setDefenseTeamNumber] = useState(
+    ballot?.defenseTeamNumber ?? "",
+  );
+  const [ourSide, setOurSide] = useState<OurSide>(ballot?.ourSide ?? "P");
+  const [scores, setScores] = useState<ScoresState>(() => buildScoresFromBallot(ballot));
   const [errors, setErrors] = useState<Record<string, { score?: string; name?: string }>>({});
   const [topErrors, setTopErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!ballot) return;
+    setRoundNumber(ballot.roundNumber);
+    setJudgeName(ballot.judgeName);
+    setProsecutionTeamNumber(ballot.prosecutionTeamNumber);
+    setDefenseTeamNumber(ballot.defenseTeamNumber);
+    setOurSide(ballot.ourSide);
+    setScores(buildScoresFromBallot(ballot));
+  }, [ballot]);
 
   const handleScoreChange = useCallback((key: ScoreKey, value: number | "") => {
     setScores((prev) => ({
@@ -341,12 +439,19 @@ export function BallotForm({ tournament }: Props) {
         scores: ballotScores,
       };
 
+      if (isEdit && ballot) {
+        updateBallot({ id: ballot.id, ...dto });
+        toast({
+          title: "Ballot updated",
+          description: `Round ${roundNumber} ballot updated successfully.`,
+        });
+      } else {
       createBallot(dto);
-
       toast({
         title: "Ballot saved",
         description: `Round ${roundNumber} ballot saved successfully.`,
       });
+      }
 
       navigate(`/tournaments/${tournament.id}`);
     } catch (error) {
@@ -475,7 +580,7 @@ export function BallotForm({ tournament }: Props) {
         <div className="lg:sticky lg:top-6 lg:self-start space-y-4">
           <LiveSummary totals={totals} />
           <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? "Saving..." : "Save Ballot"}
+            {isSubmitting ? "Saving..." : isEdit ? "Update Ballot" : "Save Ballot"}
           </Button>
         </div>
       </div>

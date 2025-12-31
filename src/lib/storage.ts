@@ -1,4 +1,10 @@
-import type { Tournament, Ballot, CreateTournamentDTO, CreateBallotDTO } from "./types";
+import type {
+  Tournament,
+  Ballot,
+  CreateTournamentDTO,
+  CreateBallotDTO,
+  UpdateBallotDTO,
+} from "./types";
 
 // In-memory + localStorage persistence layer
 // Structured for easy swap to real backend via API_BASE_URL
@@ -83,6 +89,31 @@ export function createBallot(dto: CreateBallotDTO): Ballot {
   ballots.push(ballot);
   saveToStorage(STORAGE_KEY_BALLOTS, ballots);
   return ballot;
+}
+
+export function updateBallot(dto: UpdateBallotDTO): Ballot {
+  const ballots = getBallots();
+  const index = ballots.findIndex((b) => b.id === dto.id);
+  if (index === -1) {
+    throw new Error("Ballot not found");
+  }
+
+  const existing = ballots[index];
+  const updated: Ballot = {
+    id: existing.id,
+    createdAt: existing.createdAt,
+    tournamentId: dto.tournamentId,
+    roundNumber: dto.roundNumber,
+    judgeName: dto.judgeName,
+    prosecutionTeamNumber: dto.prosecutionTeamNumber,
+    defenseTeamNumber: dto.defenseTeamNumber,
+    ourSide: dto.ourSide,
+    scores: dto.scores.map((s) => ({ ...s, ballotId: existing.id })),
+  };
+
+  ballots[index] = updated;
+  saveToStorage(STORAGE_KEY_BALLOTS, ballots);
+  return updated;
 }
 
 export function deleteBallot(id: string): void {

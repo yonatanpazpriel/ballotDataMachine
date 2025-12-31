@@ -50,3 +50,7 @@ export interface CreateBallotDTO {
   ourSide: OurSide;
   scores: Omit<BallotScore, "ballotId">[];
 }
+
+export interface UpdateBallotDTO extends CreateBallotDTO {
+  id: string;
+}

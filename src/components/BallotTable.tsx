@@ -1,4 +1,6 @@
 import { format } from "date-fns";
+import { Link } from "react-router-dom";
+import { Pencil } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -7,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import type { Ballot } from "@/lib/types";
 import { computeTotals, scoresToRecord } from "@/lib/scoring";
 import { cn } from "@/lib/utils";
@@ -37,6 +40,7 @@ export function BallotTable({ ballots }: Props) {
             <TableHead>Winner</TableHead>
             <TableHead className="text-right">Diff</TableHead>
             <TableHead className="text-right">Created</TableHead>
+            <TableHead className="w-[70px] text-right">Edit</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -51,8 +55,10 @@ export function BallotTable({ ballots }: Props) {
                 </TableCell>
                 <TableCell>
                   <span className={cn(
-                    "inline-flex items-center justify-center w-6 h-6 rounded text-xs font-medium",
-                    ballot.ourSide === "P" ? "bg-primary/10 text-primary" : "bg-accent text-accent-foreground"
+                    "inline-flex items-center justify-center w-6 h-6 rounded text-xs font-medium border",
+                    ballot.ourSide === "P"
+                      ? "bg-red-50 text-red-700 border-red-200"
+                      : "bg-blue-50 text-blue-700 border-blue-200"
                   )}>
                     {ballot.ourSide}
                   </span>
@@ -73,6 +79,13 @@ export function BallotTable({ ballots }: Props) {
                 </TableCell>
                 <TableCell className="text-right text-muted-foreground text-sm">
                   {format(new Date(ballot.createdAt), "MMM d, yyyy")}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button asChild variant="ghost" size="icon" aria-label="Edit ballot">
+                    <Link to={`/tournaments/${ballot.tournamentId}/ballots/${ballot.id}/edit`}>
+                      <Pencil className="h-4 w-4" />
+                    </Link>
+                  </Button>
                 </TableCell>
               </TableRow>
             );
