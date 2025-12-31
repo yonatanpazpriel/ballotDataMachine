@@ -6,12 +6,11 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { PROSECUTION_KEYS, DEFENSE_KEYS, type ScoreKey } from "@/lib/constants";
-import type { Tournament, OurSide, CreateBallotDTO } from "@/lib/types";
+import { PROSECUTION_KEYS, DEFENSE_KEYS, SCORE_LABELS, type ScoreKey } from "@/lib/constants";
+import type { Tournament, OurSide, CreateBallotDTO, ScoreTotals } from "@/lib/types";
 import { computeTotals } from "@/lib/scoring";
 import { createBallot } from "@/lib/storage";
-import { ScoreGrid } from "./ScoreGrid";
-import { LiveSummary } from "./LiveSummary";
+import { cn } from "@/lib/utils";
 
 interface ScoreData {
   score: number | "";
@@ -30,6 +29,189 @@ function initializeScores(): ScoresState {
 
 interface Props {
   tournament: Tournament;
+}
+
+function ScoreRow({
+  scoreKey,
+  showName,
+  score,
+  name,
+  onScoreChange,
+  onNameChange,
+  scoreError,
+  nameError,
+  tabIndexBase,
+}: {
+  scoreKey: ScoreKey;
+  showName: boolean;
+  score: number | "";
+  name: string;
+  onScoreChange: (value: number | "") => void;
+  onNameChange: (value: string) => void;
+  scoreError?: string;
+  nameError?: string;
+  tabIndexBase: number;
+}) {
+  return (
+    <div className="grid grid-cols-[1fr,auto] gap-2 items-start py-2 border-b last:border-0">
+      <div className="space-y-1">
+        <Label className="text-xs font-medium text-foreground">
+          {scoreKey}
+          <span className="ml-2 text-muted-foreground font-normal">
+            {SCORE_LABELS[scoreKey]}
+          </span>
+        </Label>
+        {showName && (
+          <Input
+            placeholder="Name (required)"
+            value={name}
+            onChange={(e) => onNameChange(e.target.value)}
+            tabIndex={tabIndexBase}
+            className={cn("h-8 text-sm", nameError && "border-destructive")}
+          />
+        )}
+        {nameError && <p className="text-xs text-destructive">{nameError}</p>}
+      </div>
+      <div className="space-y-1 w-20">
+        <Input
+          type="number"
+          min={0}
+          max={10}
+          value={score}
+          onChange={(e) => {
+            const val = e.target.value;
+            if (val === "") {
+              onScoreChange("");
+            } else {
+              const num = parseInt(val, 10);
+              if (!isNaN(num)) {
+                onScoreChange(num);
+              }
+            }
+          }}
+          tabIndex={tabIndexBase + 1}
+          className={cn("h-8 text-center font-mono-scores", scoreError && "border-destructive")}
+          placeholder="0-10"
+        />
+        {scoreError && <p className="text-xs text-destructive">{scoreError}</p>}
+      </div>
+    </div>
+  );
+}
+
+function ScoreGrid({
+  ourSide,
+  scores,
+  onScoreChange,
+  onNameChange,
+  errors,
+}: {
+  ourSide: OurSide;
+  scores: Record<ScoreKey, ScoreData>;
+  onScoreChange: (key: ScoreKey, value: number | "") => void;
+  onNameChange: (key: ScoreKey, value: string) => void;
+  errors: Record<string, { score?: string; name?: string }>;
+}) {
+  // Tab order: all P rows first (top-to-bottom), then all D rows
+  let pTabBase = 100;
+  let dTabBase = 100 + PROSECUTION_KEYS.length * 2;
+
+  return (
+    <div className="grid md:grid-cols-2 gap-6">
+      <div className="space-y-1">
+        <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground pb-2 border-b">
+          Prosecution Scores
+        </h3>
+        <div className="space-y-0">
+          {PROSECUTION_KEYS.map((key, idx) => (
+            <ScoreRow
+              key={key}
+              scoreKey={key}
+              showName={ourSide === "P"}
+              score={scores[key].score}
+              name={scores[key].name}
+              onScoreChange={(val) => onScoreChange(key, val)}
+              onNameChange={(val) => onNameChange(key, val)}
+              scoreError={errors[key]?.score}
+              nameError={errors[key]?.name}
+              tabIndexBase={pTabBase + idx * 2}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground pb-2 border-b">
+          Defense Scores
+        </h3>
+        <div className="space-y-0">
+          {DEFENSE_KEYS.map((key, idx) => (
+            <ScoreRow
+              key={key}
+              scoreKey={key}
+              showName={ourSide === "D"}
+              score={scores[key].score}
+              name={scores[key].name}
+              onScoreChange={(val) => onScoreChange(key, val)}
+              onNameChange={(val) => onNameChange(key, val)}
+              scoreError={errors[key]?.score}
+              nameError={errors[key]?.name}
+              tabIndexBase={dTabBase + idx * 2}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LiveSummary({ totals, className }: { totals: ScoreTotals; className?: string }) {
+  const { prosecutionTotal, defenseTotal, winner, diff, margin } = totals;
+
+  return (
+    <div className={cn("bg-card border rounded-lg p-4 space-y-3", className)}>
+      <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+        Live Calculation
+      </h3>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="text-center p-3 bg-secondary rounded">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Prosecution</div>
+          <div className="text-2xl font-mono-scores font-bold">{prosecutionTotal}</div>
+        </div>
+        <div className="text-center p-3 bg-secondary rounded">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Defense</div>
+          <div className="text-2xl font-mono-scores font-bold">{defenseTotal}</div>
+        </div>
+      </div>
+
+      <div className="border-t pt-3 space-y-2">
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-muted-foreground">Winner:</span>
+          <span
+            className={cn(
+              "font-semibold",
+              winner === "Prosecution" && "text-primary",
+              winner === "Defense" && "text-primary",
+              winner === "Tie" && "text-muted-foreground",
+            )}
+          >
+            {winner}
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-muted-foreground">Differential (P - D):</span>
+          <span className="font-mono-scores font-medium">{diff >= 0 ? `+${diff}` : diff}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-muted-foreground">Margin:</span>
+          <span className="font-mono-scores font-medium">
+            {margin} ({winner === "Tie" ? "Tie" : winner})
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function BallotForm({ tournament }: Props) {

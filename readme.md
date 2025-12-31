@@ -1,73 +1,37 @@
-# Welcome to your Lovable project
+# Mock Trial Ballot Tracker
 
-## Project info
+Single-page Vite/React app for creating tournaments, entering ballots, and exporting to CSV. Data is stored locally in `localStorage`.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Quick start
+- Install: `npm i`
+- Dev server: `npm run dev`
+- Production build: `npm run build`
 
-## How can I edit this code?
+## Where everything lives
+- Entry + router: `src/main.tsx`, `src/App.tsx` (routes for tournaments, details, new ballot, 404). Root layout: `src/components/Layout.tsx`.
+- Pages:
+  - `src/pages/TournamentsPage.tsx` — list, create modal, navigation.
+  - `src/pages/TournamentDetailPage.tsx` — ballots table, CSV export, new ballot link.
+  - `src/pages/NewBallotPage.tsx` — loads tournament, renders ballot form.
+  - `src/pages/NotFound.tsx` — 404 screen.
+- Ballot UI (all in one file): `src/components/BallotForm.tsx`
+  - `ScoreRow` + `ScoreGrid` — inputs for all score keys.
+  - `LiveSummary` — live totals/winner.
+  - `BallotForm` — validation, toast, save, navigation.
+- Other components: `src/components/BallotTable.tsx` (read-only view), `src/components/TournamentCreateModal.tsx`.
+- Data + logic:
+  - `src/lib/constants.ts` — ordered prosecution/defense score keys and labels.
+  - `src/lib/types.ts` — DTOs and domain types.
+  - `src/lib/storage.ts` — `localStorage` persistence (tournaments, ballots).
+  - `src/lib/scoring.ts` — total/winner calculations.
+  - `src/lib/csv-export.ts` — CSV string + download helper.
+  - `src/lib/utils.ts` — `cn` class merge helper.
+- Styling/config: `src/index.css`, `src/App.css`, `tailwind.config.ts`, `postcss.config.js`, `tsconfig*.json`, `vite.config.ts`.
+- UI primitives kept: `src/components/ui/` (button, input, label, radio-group, card, table, dialog, tooltip, toaster/sonner, toast types).
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Deployment to Vercel
+- Import the GitHub repo in Vercel.
+- Framework preset: Vite.
+- Build command: `npm run build`
+- Output directory: `dist`
+- No env vars needed for current localStorage-only app. Add envs in Vercel if you later add APIs.
