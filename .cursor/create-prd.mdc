@@ -1,3 +1,49 @@
+## Feature: Create Tournament Ballot Data export/view
+
+### Summary
+Add a “Create tournament ballot data” action within the tournament detail view (only when at least one ballot exists). It generates a tournament-level aggregation of competitor names (per side) and surfaces a “View” row near the bottom of the tournament page with a prominent “View” button. The view shows aggregated names in a fixed format and provides “Export to CSV”.
+
+### Goals
+- Allow users to aggregate competitor names across ballots for a tournament.
+- Provide a clear “View” entry point separated from the ballots table.
+- Enable CSV export of the aggregated dataset.
+
+### Non-Goals
+- Editing ballots or names within this view.
+- Handling backend persistence (remain localStorage).
+- Multi-tournament aggregation.
+
+### User Stories
+- As a user in a tournament with ballots saved, I see a “Create tournament ballot data” button and can generate an aggregated dataset.
+- As a user, after creating the dataset, I see a “View” row near the bottom, separate from ballots, with a prominent “View” button.
+- As a user, I can view the dataset in the specified format and export it to CSV.
+
+### Requirements
+- Visibility: Button appears only when viewing a tournament and at least one ballot exists.
+- Action: “Create tournament ballot data” generates the dataset immediately (no extra form).
+- Placement: A new row/section near the bottom of the tournament page, visually separated from ballots, containing a prominent “View” button.
+- View content (two sections):
+  - Header: “Prosecution Competitors”
+    - Opening attorney: name of prosecution opener
+    - Middle attorney: attorney listed as neither opener nor closer (see questions)
+    - Closing attorney: attorney who did prosecution closing
+    - Witness 1, Witness 2, Witness 3
+  - Header: “Defense Competitors” with identical fields for defense side
+- Name sourcing:
+  - Assume each name is unique.
+  - Prosecution names come from ballots where `ourSide === "P"`; defense names from ballots where `ourSide === "D"`.
+  - Names are consistent across ballots for the same side.
+- Export:
+  - “Export to CSV” from the view.
+  - CSV columns exactly match the display order described above (two sections: prosecution, defense).
+
+### Open Questions / Clarifications
+1) How do we determine opener/closer/middle from ballots? Which score keys map to opener vs closer vs “middle attorney” for each side?
+2) For witnesses, which score keys correspond to witness 1/2/3 per side?
+3) If multiple ballots exist, do we simply take the first occurrence of each role name, or should we validate consistency across ballots and warn on conflicts?
+4) Should the generated dataset be persisted (e.g., in localStorage with a timestamp), or derived on-demand each time “View” is clicked?
+5) Where exactly should the “View” row live relative to the ballots table (immediately below the table? in a separate card)?
+6) Should the “Create tournament ballot data” button be disabled or hidden after creation, or remain always available to regenerate?
 ---
 description: 
 globs: 

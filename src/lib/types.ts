@@ -54,3 +54,20 @@ export interface CreateBallotDTO {
 export interface UpdateBallotDTO extends CreateBallotDTO {
   id: string;
 }
+
+export interface AggregatedEntry {
+  role: string;
+  name: string;
+  avgDirect?: number;
+  avgCross?: number;
+  avgStatement?: number;
+}
+
+export interface AggregatedBallotData {
+  tournamentId: string;
+  generatedAt: string;
+  sides: Array<{
+    side: OurSide;
+    entries: AggregatedEntry[];
+  }>;
+}

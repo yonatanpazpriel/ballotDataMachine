@@ -4,6 +4,7 @@ import type {
   CreateTournamentDTO,
   CreateBallotDTO,
   UpdateBallotDTO,
+  AggregatedBallotData,
 } from "./types";
 
 // In-memory + localStorage persistence layer
@@ -11,6 +12,7 @@ import type {
 
 const STORAGE_KEY_TOURNAMENTS = "mock_trial_tournaments";
 const STORAGE_KEY_BALLOTS = "mock_trial_ballots";
+const STORAGE_KEY_BALLOT_DATA = "mock_trial_ballot_data";
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -119,4 +121,19 @@ export function updateBallot(dto: UpdateBallotDTO): Ballot {
 export function deleteBallot(id: string): void {
   const ballots = getBallots().filter((b) => b.id !== id);
   saveToStorage(STORAGE_KEY_BALLOTS, ballots);
+}
+
+// Aggregated ballot data
+export function getAggregatedData(): AggregatedBallotData[] {
+  return loadFromStorage<AggregatedBallotData>(STORAGE_KEY_BALLOT_DATA);
+}
+
+export function getAggregatedDataForTournament(tournamentId: string): AggregatedBallotData | undefined {
+  return getAggregatedData().find((d) => d.tournamentId === tournamentId);
+}
+
+export function saveAggregatedData(data: AggregatedBallotData): void {
+  const existing = getAggregatedData().filter((d) => d.tournamentId !== data.tournamentId);
+  existing.push(data);
+  saveToStorage(STORAGE_KEY_BALLOT_DATA, existing);
 }

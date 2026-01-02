@@ -3,9 +3,10 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { Plus, Download, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BallotTable } from "@/components/BallotTable";
-import { getTournament, getBallotsByTournament } from "@/lib/storage";
+import { getTournament, getBallotsByTournament, getAggregatedDataForTournament, saveAggregatedData } from "@/lib/storage";
 import { exportBallotsToCSV, downloadCSV } from "@/lib/csv-export";
-import type { Tournament, Ballot } from "@/lib/types";
+import { aggregateBallotData, aggregatedDataToCSV } from "@/lib/aggregate-ballot-data";
+import type { Tournament, Ballot, AggregatedBallotData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
 export default function TournamentDetailPage() {
@@ -14,6 +15,8 @@ export default function TournamentDetailPage() {
   const { toast } = useToast();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [ballots, setBallots] = useState<Ballot[]>([]);
+  const [aggData, setAggData] = useState<AggregatedBallotData | null>(null);
+  const [showAggView, setShowAggView] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -24,6 +27,8 @@ export default function TournamentDetailPage() {
     }
     setTournament(t);
     setBallots(getBallotsByTournament(id));
+    const existingAgg = getAggregatedDataForTournament(id);
+    if (existingAgg) setAggData(existingAgg);
   }, [id, navigate]);
 
   const handleExportCSV = () => {
@@ -43,6 +48,22 @@ export default function TournamentDetailPage() {
       title: "CSV exported",
       description: `Exported ${ballots.length} ballot(s) to ${filename}`,
     });
+  };
+
+  const handleCreateAgg = () => {
+    if (!tournament) return;
+    if (ballots.length === 0) return;
+    const data = aggregateBallotData(tournament.id, ballots);
+    saveAggregatedData(data);
+    setAggData(data);
+    setShowAggView(false);
+    toast({ title: "Tournament data created" });
+  };
+
+  const handleExportAggCSV = () => {
+    if (!aggData) return;
+    const csv = aggregatedDataToCSV(aggData);
+    downloadCSV(csv, `${tournament?.name ?? "tournament"}_ballot_data.csv`);
   };
 
   if (!tournament) {
@@ -77,6 +98,62 @@ export default function TournamentDetailPage() {
       </div>
 
       <BallotTable ballots={ballots} />
+
+      {ballots.length > 0 && (
+        <div className="mt-8 border-t pt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="font-medium">Tournament ballot data</div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleCreateAgg}>
+                Create tournament ballot data
+              </Button>
+              {aggData && (
+                <Button variant="secondary" onClick={() => setShowAggView((v) => !v)}>
+                  {showAggView ? "Hide" : "View"}
+                </Button>
+              )}
+            </div>
+          </div>
+          {aggData && showAggView && (
+            <div className="border rounded-lg p-4 space-y-3 bg-card">
+              {aggData.sides.map((side) => (
+                <div key={side.side} className="space-y-2">
+                  <div className="font-semibold">
+                    {side.side === "P" ? "Prosecution Competitors" : "Defense Competitors"}
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="text-muted-foreground">
+                        <tr>
+                          <th className="text-left py-2">Role</th>
+                          <th className="text-left py-2">Name</th>
+                          <th className="text-left py-2">Avg Direct</th>
+                          <th className="text-left py-2">Avg Cross</th>
+                          <th className="text-left py-2">Avg Statement</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {side.entries.map((e, idx) => (
+                          <tr key={idx} className="border-t">
+                            <td className="py-2">{e.role}</td>
+                            <td className="py-2">{e.name}</td>
+                            <td className="py-2">{e.avgDirect ?? ""}</td>
+                            <td className="py-2">{e.avgCross ?? ""}</td>
+                            <td className="py-2">{e.avgStatement ?? ""}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+              <div className="flex justify-end">
+                <Button onClick={handleExportAggCSV}>Export to CSV</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
