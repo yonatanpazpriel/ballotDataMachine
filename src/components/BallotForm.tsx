@@ -174,6 +174,9 @@ function ScoreGrid({
   // Tab order stays columnar; advance counters only when we render an input row.
   let pTabBase = 100;
   let dTabBase = 100 + PROSECUTION_KEYS.length * 2;
+  const breakAfter = new Set([0, 3, 6, 9, 12, 15, 18]);
+  const barClass = "h-1 bg-slate-800 rounded";
+  const thickBarIdx = 9;
 
   return (
     <div className="space-y-2">
@@ -197,43 +200,48 @@ function ScoreGrid({
           if (row.dKey) dTabBase += 2;
 
           return (
-            <div key={idx} className="grid md:grid-cols-2 gap-6">
-              <div className="bg-red-50 rounded-md px-3 py-2">
-                {row.pKey ? (
-                  <ScoreRow
-                    scoreKey={row.pKey}
-                    showName={ourSide === "P"}
-                    score={scores[row.pKey].score}
-                    name={scores[row.pKey].name}
-                    onScoreChange={(val) => onScoreChange(row.pKey!, val)}
-                    onNameChange={(val) => onNameChange(row.pKey!, val)}
-                    scoreError={errors[row.pKey]?.score}
-                    nameError={errors[row.pKey]?.name}
-                    tabIndexBase={pTab!}
-                  />
-                ) : (
-                  <div className="h-12" />
-                )}
-              </div>
+            <div key={idx} className="space-y-1">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="bg-red-50 rounded-md px-3 py-2">
+                  {row.pKey ? (
+                    <ScoreRow
+                      scoreKey={row.pKey}
+                      showName={ourSide === "P"}
+                      score={scores[row.pKey].score}
+                      name={scores[row.pKey].name}
+                      onScoreChange={(val) => onScoreChange(row.pKey!, val)}
+                      onNameChange={(val) => onNameChange(row.pKey!, val)}
+                      scoreError={errors[row.pKey]?.score}
+                      nameError={errors[row.pKey]?.name}
+                      tabIndexBase={pTab!}
+                    />
+                  ) : (
+                    <div className="h-12" />
+                  )}
+                </div>
 
-              <div className="bg-blue-50 rounded-md px-3 py-2">
-                {row.dKey ? (
-                  <ScoreRow
-                    scoreKey={row.dKey}
-                    showName={ourSide === "D"}
-                    score={scores[row.dKey].score}
-                    name={scores[row.dKey].name}
-                    onScoreChange={(val) => onScoreChange(row.dKey!, val)}
-                    onNameChange={(val) => onNameChange(row.dKey!, val)}
-                    scoreError={errors[row.dKey]?.score}
-                    nameError={errors[row.dKey]?.name}
-                  tabIndexBase={dTab!}
-                  labelAlign="right"
-                  />
-                ) : (
-                  <div className="h-12" />
-                )}
+                <div className="bg-blue-50 rounded-md px-3 py-2">
+                  {row.dKey ? (
+                    <ScoreRow
+                      scoreKey={row.dKey}
+                      showName={ourSide === "D"}
+                      score={scores[row.dKey].score}
+                      name={scores[row.dKey].name}
+                      onScoreChange={(val) => onScoreChange(row.dKey!, val)}
+                      onNameChange={(val) => onNameChange(row.dKey!, val)}
+                      scoreError={errors[row.dKey]?.score}
+                      nameError={errors[row.dKey]?.name}
+                      tabIndexBase={dTab!}
+                      labelAlign="right"
+                    />
+                  ) : (
+                    <div className="h-12" />
+                  )}
+                </div>
               </div>
+              {breakAfter.has(idx) && (
+                <div className={cn(barClass, idx === thickBarIdx && "h-3")} />
+              )}
             </div>
           );
         })}

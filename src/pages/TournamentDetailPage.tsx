@@ -31,19 +31,6 @@ export default function TournamentDetailPage() {
     if (existingAgg) setAggData(existingAgg);
   }, [id, navigate]);
 
-  useEffect(() => {
-    if (!tournament) return;
-    if (ballots.length === 0) {
-      setAggData(null);
-      setShowAggView(false);
-      return;
-    }
-    const data = aggregateBallotData(tournament.id, ballots);
-    saveAggregatedData(data);
-    setAggData(data);
-    setShowAggView(false);
-  }, [ballots, tournament]);
-
   const handleExportCSV = () => {
     if (!tournament) return;
     if (ballots.length === 0) {
@@ -61,6 +48,16 @@ export default function TournamentDetailPage() {
       title: "CSV exported",
       description: `Exported ${ballots.length} ballot(s) to ${filename}`,
     });
+  };
+
+  const handleCreateAgg = () => {
+    if (!tournament) return;
+    if (ballots.length === 0) return;
+    const data = aggregateBallotData(tournament.id, ballots);
+    saveAggregatedData(data);
+    setAggData(data);
+    setShowAggView(false);
+    toast({ title: "Tournament data created" });
   };
 
   const handleExportAggCSV = () => {
@@ -106,14 +103,16 @@ export default function TournamentDetailPage() {
         <div className="mt-8 border-t pt-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="font-medium">Tournament ballot data</div>
-            {aggData && (
-              <Button
-                onClick={() => setShowAggView((v) => !v)}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                {showAggView ? "Hide tournament data" : "Show tournament data"}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleCreateAgg}>
+                Create tournament ballot data
               </Button>
-            )}
+              {aggData && (
+                <Button variant="secondary" onClick={() => setShowAggView((v) => !v)}>
+                  {showAggView ? "Hide" : "View"}
+                </Button>
+              )}
+            </div>
           </div>
           {aggData && showAggView && (
             <div className="border rounded-lg p-4 space-y-3 bg-card">
@@ -131,8 +130,6 @@ export default function TournamentDetailPage() {
                           <th className="text-left py-2">Avg Direct</th>
                           <th className="text-left py-2">Avg Cross</th>
                           <th className="text-left py-2">Avg Statement</th>
-                          <th className="text-left py-2">Statement Pickup</th>
-                          <th className="text-left py-2">Cross Pickup</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -143,8 +140,6 @@ export default function TournamentDetailPage() {
                             <td className="py-2">{e.avgDirect ?? ""}</td>
                             <td className="py-2">{e.avgCross ?? ""}</td>
                             <td className="py-2">{e.avgStatement ?? ""}</td>
-                            <td className="py-2">{e.statementPickup ?? ""}</td>
-                            <td className="py-2">{e.crossPickup ?? ""}</td>
                           </tr>
                         ))}
                       </tbody>

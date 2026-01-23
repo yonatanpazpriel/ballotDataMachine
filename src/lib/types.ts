@@ -61,8 +61,6 @@ export interface AggregatedEntry {
   avgDirect?: number;
   avgCross?: number;
   avgStatement?: number;
-  statementPickup?: number;
-  crossPickup?: number;
 }
 
 export interface AggregatedBallotData {
