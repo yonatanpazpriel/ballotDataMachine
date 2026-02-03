@@ -2,21 +2,21 @@
 export const PROSECUTION_KEYS = [
   "P. Open",
 
-  "P.Dx1: Atty",
-  "P.Dx1: Witness",
-  "P.Cx1: Witness",
+  "P. Direct 1: Attorney",
+  "P. Direct 1: Witness",
+  "P. Cross  1: Witness",
 
-  "P.Dx2: Atty",
-  "P.Dx2: Witness",
-  "P.Cx2: Witness",
+  "P. Direct 2: Attorney",
+  "P. Direct 2: Witness",
+  "P. Cross  2: Witness",
 
-  "P.Dx3: Atty",
-  "P.Dx3: Witness",
-  "P.Cx3: Witness",
+  "P. Direct 3: Attorney",
+  "P. Direct 3: Witness",
+  "P. Cross  3: Witness",
 
-  "P.Cx1: Atty",
-  "P.Cx2: Atty",
-  "P.Cx3: Atty",
+  "P. Cross  1: Attorney",
+  "P. Cross  2: Attorney",
+  "P. Cross  3: Attorney",
 
   "P. Close",
 ] as const;
@@ -24,21 +24,21 @@ export const PROSECUTION_KEYS = [
 export const DEFENSE_KEYS = [
   "D. Open",
 
-  "D.Cx1: Atty",
-  "D.Cx2: Atty",
-  "D.Cx3: Atty",
+  "D. Cross 1: Attorney",
+  "D. Cross 2: Attorney",
+  "D. Cross 3: Attorney",
 
-  "D.Dx1: Atty",
-  "D.Dx1: Witness",
-  "D.Cx1: Witness",
+  "D. Direct 1: Attorney",
+  "D. Direct 1: Witness",
+  "D. Cross 1: Witness",
 
-  "D.Dx2: Atty",
-  "D.Dx2: Witness",
-  "D.Cx2: Witness",
+  "D. Direct 2: Attorney",
+  "D. Direct 2: Witness",
+  "D. Cross 2: Witness",
 
-  "D.Dx3: Atty",
-  "D.Dx3: Witness",
-  "D.Cx3: Witness",
+  "D. Direct 3: Attorney",
+  "D. Direct 3: Witness",
+  "D. Cross 3: Witness",
 
   "D. Close",
 ] as const;
