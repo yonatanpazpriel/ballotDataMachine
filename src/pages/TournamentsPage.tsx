@@ -33,7 +33,7 @@ export default function TournamentsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Tournaments</h1>
           <p className="text-muted-foreground mt-1">
-            Manage your mock trial tournaments and ballots
+            go cmt 🐻
           </p>
         </div>
         <Button onClick={() => setIsModalOpen(true)}>

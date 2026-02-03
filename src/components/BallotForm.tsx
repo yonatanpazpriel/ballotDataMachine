@@ -174,10 +174,6 @@ function ScoreGrid({
   // Tab order stays columnar; advance counters only when we render an input row.
   let pTabBase = 100;
   let dTabBase = 100 + PROSECUTION_KEYS.length * 2;
-  const breakAfter = new Set([0, 3, 6, 9, 12, 15, 18]);
-  const barClass = "h-1 bg-slate-800 rounded";
-  const thickBarIdx = 9;
-
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-6">
@@ -198,9 +194,14 @@ function ScoreGrid({
           const dTab = row.dKey ? dTabBase : undefined;
           if (row.pKey) pTabBase += 2;
           if (row.dKey) dTabBase += 2;
+          const showAfterOpen = row.pKey === "P. Open" && row.dKey === "D. Open";
+          const showAfterCross3 =
+            row.pKey === "P. Cross  3: Witness" && row.dKey === "D. Cross 3: Attorney";
+          const showBeforeClose = row.pKey === "P. Close" && row.dKey === "D. Close";
 
           return (
             <div key={idx} className="space-y-1">
+              {showBeforeClose && <div className="h-1 rounded bg-gray-300" />}
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="bg-red-50 rounded-md px-3 py-2">
                   {row.pKey ? (
@@ -239,8 +240,12 @@ function ScoreGrid({
                   )}
                 </div>
               </div>
-              {breakAfter.has(idx) && (
-                <div className={cn(barClass, idx === thickBarIdx && "h-3")} />
+              {showAfterOpen && <div className="h-1 rounded bg-gray-300" />}
+              {showAfterCross3 && (
+                <div className="space-y-1">
+                  <div className="h-1 rounded bg-gray-300" />
+                  <div className="h-1 rounded bg-gray-300" />
+                </div>
               )}
             </div>
           );
@@ -260,11 +265,11 @@ function LiveSummary({ totals, className }: { totals: ScoreTotals; className?: s
       </h3>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="text-center p-3 bg-secondary rounded">
+        <div className="text-center p-3 bg-gray-50 rounded">
           <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Prosecution</div>
           <div className="text-2xl font-mono-scores font-bold">{prosecutionTotal}</div>
         </div>
-        <div className="text-center p-3 bg-secondary rounded">
+        <div className="text-center p-3 bg-gray-50 rounded">
           <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Defense</div>
           <div className="text-2xl font-mono-scores font-bold">{defenseTotal}</div>
         </div>
@@ -276,7 +281,7 @@ function LiveSummary({ totals, className }: { totals: ScoreTotals; className?: s
           <span
             className={cn(
               "font-semibold",
-              winner === "Prosecution" && "text-primary",
+              winner === "Prosecution" && "text-red-600",
               winner === "Defense" && "text-primary",
               winner === "Tie" && "text-muted-foreground",
             )}
