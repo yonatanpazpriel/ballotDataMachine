@@ -130,6 +130,8 @@ export default function TournamentDetailPage() {
                           <th className="text-left py-2">Avg Direct</th>
                           <th className="text-left py-2">Avg Cross</th>
                           <th className="text-left py-2">Avg Statement</th>
+                          <th className="text-left py-2">Statement Pickup</th>
+                          <th className="text-left py-2">Cross Pickup</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -140,6 +142,8 @@ export default function TournamentDetailPage() {
                             <td className="py-2">{e.avgDirect ?? ""}</td>
                             <td className="py-2">{e.avgCross ?? ""}</td>
                             <td className="py-2">{e.avgStatement ?? ""}</td>
+                            <td className="py-2">{e.statementPickup ?? ""}</td>
+                            <td className="py-2">{e.crossPickup ?? ""}</td>
                           </tr>
                         ))}
                       </tbody>

@@ -138,28 +138,28 @@ function ScoreGrid({
   // to match the requested layout.
   const alignedRows: Array<{ pKey?: ScoreKey; dKey?: ScoreKey }> = [
     { pKey: "P. Open", dKey: "D. Open" },
-    { pKey: "P.Dx1: Atty", dKey: undefined },
-    { pKey: "P.Dx1: Witness", dKey: undefined },
-    { pKey: "P.Cx1: Witness", dKey: "D.Cx1: Atty" },
+    { pKey: "P. Direct 1: Attorney", dKey: undefined },
+    { pKey: "P. Direct 1: Witness", dKey: undefined },
+    { pKey: "P. Cross  1: Witness", dKey: "D. Cross 1: Attorney" },
 
-    { pKey: "P.Dx2: Atty", dKey: undefined },
-    { pKey: "P.Dx2: Witness", dKey: undefined },
-    { pKey: "P.Cx2: Witness", dKey: "D.Cx2: Atty" },
+    { pKey: "P. Direct 2: Attorney", dKey: undefined },
+    { pKey: "P. Direct 2: Witness", dKey: undefined },
+    { pKey: "P. Cross  2: Witness", dKey: "D. Cross 2: Attorney" },
 
-    { pKey: "P.Dx3: Atty", dKey: undefined },
-    { pKey: "P.Dx3: Witness", dKey: undefined },
-    { pKey: "P.Cx3: Witness", dKey: "D.Cx3: Atty" },
+    { pKey: "P. Direct 3: Attorney", dKey: undefined },
+    { pKey: "P. Direct 3: Witness", dKey: undefined },
+    { pKey: "P. Cross  3: Witness", dKey: "D. Cross 3: Attorney" },
 
     // Remaining defense rows in requested order, aligning P where specified
-    { pKey: undefined, dKey: "D.Dx1: Atty" },
-    { pKey: undefined, dKey: "D.Dx1: Witness" },
-    { pKey: "P.Cx1: Atty", dKey: "D.Cx1: Witness" },
-    { pKey: undefined, dKey: "D.Dx2: Atty" },
-    { pKey: undefined, dKey: "D.Dx2: Witness" },
-    { pKey: "P.Cx2: Atty", dKey: "D.Cx2: Witness" },
-    { pKey: undefined, dKey: "D.Dx3: Atty" },
-    { pKey: undefined, dKey: "D.Dx3: Witness" },
-    { pKey: "P.Cx3: Atty", dKey: "D.Cx3: Witness" },
+    { pKey: undefined, dKey: "D. Direct 1: Attorney" },
+    { pKey: undefined, dKey: "D. Direct 1: Witness" },
+    { pKey: "P. Cross  1: Attorney", dKey: "D. Cross 1: Witness" },
+    { pKey: undefined, dKey: "D. Direct 2: Attorney" },
+    { pKey: undefined, dKey: "D. Direct 2: Witness" },
+    { pKey: "P. Cross  2: Attorney", dKey: "D. Cross 2: Witness" },
+    { pKey: undefined, dKey: "D. Direct 3: Attorney" },
+    { pKey: undefined, dKey: "D. Direct 3: Witness" },
+    { pKey: "P. Cross  3: Attorney", dKey: "D. Cross 3: Witness" },
     { pKey: "P. Close", dKey: "D. Close" },
   ];
 
