@@ -50,7 +50,7 @@ export function BallotTable({ ballots, onDeleteBallot }: Props) {
             <TableHead>D Team #</TableHead>
             <TableHead>Judge</TableHead>
             <TableHead>Winner</TableHead>
-            <TableHead className="text-right">Diff</TableHead>
+            <TableHead className="text-right">Margin</TableHead>
             <TableHead className="w-[140px] text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
