@@ -31,14 +31,39 @@ function saveToStorage<T>(key: string, data: T[]): void {
   localStorage.setItem(key, JSON.stringify(data));
 }
 
+function ensureTournamentShareIds(tournaments: Tournament[]): Tournament[] {
+  let updated = false;
+  const withShareIds = tournaments.map((t) => {
+    if (t.shareId) return t;
+    updated = true;
+    return { ...t, shareId: generateId() };
+  });
+  if (updated) {
+    saveToStorage(STORAGE_KEY_TOURNAMENTS, withShareIds);
+  }
+  return withShareIds;
+}
+
 // Tournament operations
 export function getTournaments(): Tournament[] {
-  return loadFromStorage<Tournament>(STORAGE_KEY_TOURNAMENTS);
+  const tournaments = loadFromStorage<Tournament>(STORAGE_KEY_TOURNAMENTS);
+  return ensureTournamentShareIds(tournaments);
 }
 
 export function getTournament(id: string): Tournament | undefined {
   const tournaments = getTournaments();
   return tournaments.find((t) => t.id === id);
+}
+
+export function upsertTournament(tournament: Tournament): void {
+  const tournaments = getTournaments();
+  const index = tournaments.findIndex((t) => t.id === tournament.id);
+  if (index === -1) {
+    tournaments.push(tournament);
+  } else {
+    tournaments[index] = tournament;
+  }
+  saveToStorage(STORAGE_KEY_TOURNAMENTS, tournaments);
 }
 
 export function createTournament(dto: CreateTournamentDTO): Tournament {
@@ -47,6 +72,7 @@ export function createTournament(dto: CreateTournamentDTO): Tournament {
     id: generateId(),
     name: dto.name,
     createdAt: new Date().toISOString(),
+    shareId: generateId(),
   };
   tournaments.push(tournament);
   saveToStorage(STORAGE_KEY_TOURNAMENTS, tournaments);
@@ -68,6 +94,11 @@ export function getBallots(): Ballot[] {
 
 export function getBallotsByTournament(tournamentId: string): Ballot[] {
   return getBallots().filter((b) => b.tournamentId === tournamentId);
+}
+
+export function replaceBallotsForTournament(tournamentId: string, ballots: Ballot[]): void {
+  const existing = getBallots().filter((b) => b.tournamentId !== tournamentId);
+  saveToStorage(STORAGE_KEY_BALLOTS, [...existing, ...ballots]);
 }
 
 export function getBallot(id: string): Ballot | undefined {
@@ -135,5 +166,10 @@ export function getAggregatedDataForTournament(tournamentId: string): Aggregated
 export function saveAggregatedData(data: AggregatedBallotData): void {
   const existing = getAggregatedData().filter((d) => d.tournamentId !== data.tournamentId);
   existing.push(data);
+  saveToStorage(STORAGE_KEY_BALLOT_DATA, existing);
+}
+
+export function clearAggregatedDataForTournament(tournamentId: string): void {
+  const existing = getAggregatedData().filter((d) => d.tournamentId !== tournamentId);
   saveToStorage(STORAGE_KEY_BALLOT_DATA, existing);
 }

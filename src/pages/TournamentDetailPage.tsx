@@ -4,6 +4,7 @@ import { Plus, Download, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BallotTable } from "@/components/BallotTable";
 import { getTournament, getBallotsByTournament, getAggregatedDataForTournament, saveAggregatedData } from "@/lib/storage";
+import { saveSharedTournament } from "@/lib/share";
 import { exportBallotsToCSV, downloadCSV } from "@/lib/csv-export";
 import { aggregateBallotData, aggregatedDataToCSV } from "@/lib/aggregate-ballot-data";
 import type { Tournament, Ballot, AggregatedBallotData } from "@/lib/types";
@@ -57,7 +58,23 @@ export default function TournamentDetailPage() {
     saveAggregatedData(data);
     setAggData(data);
     setShowAggView(false);
+    saveSharedTournament(tournament.id);
     toast({ title: "Tournament data created" });
+  };
+
+  const handleCopyShareLink = async () => {
+    if (!tournament) return;
+    const url = `${window.location.origin}/share/${tournament.shareId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Share link copied" });
+    } catch {
+      toast({
+        title: "Failed to copy link",
+        description: "Please copy the link from the address bar.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleExportAggCSV = () => {
@@ -83,6 +100,9 @@ export default function TournamentDetailPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">{tournament.name}</h1>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={handleCopyShareLink}>
+              Copy Share Link
+            </Button>
             <Button variant="outline" onClick={handleExportCSV}>
               <Download className="h-4 w-4 mr-2" />
               Export CSV

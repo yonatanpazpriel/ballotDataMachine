@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createTournament } from "@/lib/storage";
+import { saveSharedTournament } from "@/lib/share";
 import type { Tournament } from "@/lib/types";
 
 const schema = z.object({
@@ -37,8 +38,9 @@ export function TournamentCreateModal({ open, onOpenChange, onCreated }: Props) 
     resolver: zodResolver(schema),
   });
 
-  const onSubmit = (data: FormData) => {
+  const onSubmit = async (data: FormData) => {
     const tournament = createTournament({ name: data.name.trim() });
+    await saveSharedTournament(tournament.id);
     reset();
     onCreated(tournament);
     onOpenChange(false);

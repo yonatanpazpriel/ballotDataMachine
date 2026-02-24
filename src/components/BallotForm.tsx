@@ -10,6 +10,7 @@ import { PROSECUTION_KEYS, DEFENSE_KEYS, type ScoreKey } from "@/lib/constants";
 import type { Tournament, OurSide, CreateBallotDTO, ScoreTotals, Ballot } from "@/lib/types";
 import { computeTotals } from "@/lib/scoring";
 import { createBallot, updateBallot } from "@/lib/storage";
+import { saveSharedTournament } from "@/lib/share";
 import { cn } from "@/lib/utils";
 
 interface ScoreData {
@@ -454,16 +455,18 @@ export function BallotForm({ tournament, ballot }: Props) {
 
       if (isEdit && ballot) {
         updateBallot({ id: ballot.id, ...dto });
+        await saveSharedTournament(tournament.id);
         toast({
           title: "Ballot updated",
           description: `Round ${roundNumber} ballot updated successfully.`,
         });
       } else {
-      createBallot(dto);
-      toast({
-        title: "Ballot saved",
-        description: `Round ${roundNumber} ballot saved successfully.`,
-      });
+        createBallot(dto);
+        await saveSharedTournament(tournament.id);
+        toast({
+          title: "Ballot saved",
+          description: `Round ${roundNumber} ballot saved successfully.`,
+        });
       }
 
       navigate(`/tournaments/${tournament.id}`);

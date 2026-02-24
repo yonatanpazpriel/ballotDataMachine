@@ -8,6 +8,7 @@ import TournamentsPage from "./pages/TournamentsPage";
 import TournamentDetailPage from "./pages/TournamentDetailPage";
 import NewBallotPage from "./pages/NewBallotPage";
 import EditBallotPage from "./pages/EditBallotPage";
+import SharedTournamentPage from "./pages/SharedTournamentPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="tournaments/:id" element={<TournamentDetailPage />} />
             <Route path="tournaments/:id/ballots/new" element={<NewBallotPage />} />
             <Route path="tournaments/:id/ballots/:ballotId/edit" element={<EditBallotPage />} />
+            <Route path="share/:shareId" element={<SharedTournamentPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
