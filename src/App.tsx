@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import TournamentsPage from "./pages/TournamentsPage";
 import TournamentDetailPage from "./pages/TournamentDetailPage";
+import TournamentRosterPage from "./pages/TournamentRosterPage";
 import NewBallotPage from "./pages/NewBallotPage";
 import EditBallotPage from "./pages/EditBallotPage";
 import SharedTournamentPage from "./pages/SharedTournamentPage";
@@ -24,6 +25,7 @@ const App = () => (
             <Route index element={<Navigate to="/tournaments" replace />} />
             <Route path="tournaments" element={<TournamentsPage />} />
             <Route path="tournaments/:id" element={<TournamentDetailPage />} />
+            <Route path="tournaments/:id/roster" element={<TournamentRosterPage />} />
             <Route path="tournaments/:id/ballots/new" element={<NewBallotPage />} />
             <Route path="tournaments/:id/ballots/:ballotId/edit" element={<EditBallotPage />} />
             <Route path="share/:shareId" element={<SharedTournamentPage />} />

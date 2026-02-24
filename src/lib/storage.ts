@@ -1,5 +1,6 @@
 import type {
   Tournament,
+  TournamentRoster,
   Ballot,
   CreateTournamentDTO,
   CreateBallotDTO,
@@ -31,6 +32,20 @@ function saveToStorage<T>(key: string, data: T[]): void {
   localStorage.setItem(key, JSON.stringify(data));
 }
 
+function defaultRoster(): TournamentRoster {
+  return {
+    teamNumber: "",
+    prosecution: {
+      attorneys: { opener: "", middle: "", closer: "" },
+      witnesses: ["", "", ""],
+    },
+    defense: {
+      attorneys: { opener: "", middle: "", closer: "" },
+      witnesses: ["", "", ""],
+    },
+  };
+}
+
 function ensureTournamentShareIds(tournaments: Tournament[]): Tournament[] {
   let updated = false;
   const withShareIds = tournaments.map((t) => {
@@ -44,10 +59,23 @@ function ensureTournamentShareIds(tournaments: Tournament[]): Tournament[] {
   return withShareIds;
 }
 
+function ensureTournamentRosters(tournaments: Tournament[]): Tournament[] {
+  let updated = false;
+  const withRosters = tournaments.map((t) => {
+    if (t.roster) return t;
+    updated = true;
+    return { ...t, roster: defaultRoster() };
+  });
+  if (updated) {
+    saveToStorage(STORAGE_KEY_TOURNAMENTS, withRosters);
+  }
+  return withRosters;
+}
+
 // Tournament operations
 export function getTournaments(): Tournament[] {
   const tournaments = loadFromStorage<Tournament>(STORAGE_KEY_TOURNAMENTS);
-  return ensureTournamentShareIds(tournaments);
+  return ensureTournamentRosters(ensureTournamentShareIds(tournaments));
 }
 
 export function getTournament(id: string): Tournament | undefined {
@@ -66,6 +94,16 @@ export function upsertTournament(tournament: Tournament): void {
   saveToStorage(STORAGE_KEY_TOURNAMENTS, tournaments);
 }
 
+export function updateTournamentRoster(tournamentId: string, roster: TournamentRoster): Tournament | null {
+  const tournaments = getTournaments();
+  const index = tournaments.findIndex((t) => t.id === tournamentId);
+  if (index === -1) return null;
+  const updated = { ...tournaments[index], roster };
+  tournaments[index] = updated;
+  saveToStorage(STORAGE_KEY_TOURNAMENTS, tournaments);
+  return updated;
+}
+
 export function createTournament(dto: CreateTournamentDTO): Tournament {
   const tournaments = getTournaments();
   const tournament: Tournament = {
@@ -73,6 +111,7 @@ export function createTournament(dto: CreateTournamentDTO): Tournament {
     name: dto.name,
     createdAt: new Date().toISOString(),
     shareId: generateId(),
+    roster: defaultRoster(),
   };
   tournaments.push(tournament);
   saveToStorage(STORAGE_KEY_TOURNAMENTS, tournaments);

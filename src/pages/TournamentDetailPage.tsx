@@ -1,9 +1,16 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { Plus, Download, ArrowLeft } from "lucide-react";
+import { Plus, Download, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BallotTable } from "@/components/BallotTable";
-import { getTournament, getBallotsByTournament, getAggregatedDataForTournament, saveAggregatedData } from "@/lib/storage";
+import {
+  getTournament,
+  getBallotsByTournament,
+  getAggregatedDataForTournament,
+  saveAggregatedData,
+  deleteBallot,
+  clearAggregatedDataForTournament,
+} from "@/lib/storage";
 import { saveSharedTournament } from "@/lib/share";
 import { exportBallotsToCSV, downloadCSV } from "@/lib/csv-export";
 import { aggregateBallotData, aggregatedDataToCSV } from "@/lib/aggregate-ballot-data";
@@ -17,7 +24,7 @@ export default function TournamentDetailPage() {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [ballots, setBallots] = useState<Ballot[]>([]);
   const [aggData, setAggData] = useState<AggregatedBallotData | null>(null);
-  const [showAggView, setShowAggView] = useState(false);
+  const [showAggView, setShowAggView] = useState(true);
 
   useEffect(() => {
     if (!id) return;
@@ -27,9 +34,14 @@ export default function TournamentDetailPage() {
       return;
     }
     setTournament(t);
-    setBallots(getBallotsByTournament(id));
-    const existingAgg = getAggregatedDataForTournament(id);
-    if (existingAgg) setAggData(existingAgg);
+    const currentBallots = getBallotsByTournament(id);
+    setBallots(currentBallots);
+    let agg = getAggregatedDataForTournament(id);
+    if (currentBallots.length > 0 && !agg) {
+      agg = aggregateBallotData(id, currentBallots);
+      saveAggregatedData(agg);
+    }
+    if (agg) setAggData(agg);
   }, [id, navigate]);
 
   const handleExportCSV = () => {
@@ -51,17 +63,6 @@ export default function TournamentDetailPage() {
     });
   };
 
-  const handleCreateAgg = () => {
-    if (!tournament) return;
-    if (ballots.length === 0) return;
-    const data = aggregateBallotData(tournament.id, ballots);
-    saveAggregatedData(data);
-    setAggData(data);
-    setShowAggView(false);
-    saveSharedTournament(tournament.id);
-    toast({ title: "Tournament data created" });
-  };
-
   const handleCopyShareLink = async () => {
     if (!tournament) return;
     const url = `${window.location.origin}/share/${tournament.shareId}`;
@@ -81,6 +82,37 @@ export default function TournamentDetailPage() {
     if (!aggData) return;
     const csv = aggregatedDataToCSV(aggData);
     downloadCSV(csv, `${tournament?.name ?? "tournament"}_ballot_data.csv`);
+  };
+
+  const handleDeleteBallot = async (ballotId: string) => {
+    if (!id) return;
+    try {
+      deleteBallot(ballotId);
+      const updatedBallots = getBallotsByTournament(id);
+      setBallots(updatedBallots);
+
+      if (updatedBallots.length > 0) {
+        const updatedAgg = aggregateBallotData(id, updatedBallots);
+        saveAggregatedData(updatedAgg);
+        setAggData(updatedAgg);
+      } else {
+        clearAggregatedDataForTournament(id);
+        setAggData(null);
+      }
+
+      await saveSharedTournament(id);
+
+      toast({
+        title: "Ballot deleted",
+        description: "The ballot was deleted permanently.",
+      });
+    } catch {
+      toast({
+        title: "Error deleting ballot",
+        description: "Failed to delete ballot. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (!tournament) {
@@ -107,6 +139,9 @@ export default function TournamentDetailPage() {
               <Download className="h-4 w-4 mr-2" />
               Export CSV
             </Button>
+            <Button asChild className="bg-purple-600 hover:bg-purple-700 text-white">
+              <Link to={`/tournaments/${tournament.id}/roster`}>Edit team info</Link>
+            </Button>
             <Button asChild>
               <Link to={`/tournaments/${tournament.id}/ballots/new`}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -117,65 +152,75 @@ export default function TournamentDetailPage() {
         </div>
       </div>
 
-      <BallotTable ballots={ballots} />
+      <BallotTable ballots={ballots} onDeleteBallot={handleDeleteBallot} />
 
-      {ballots.length > 0 && (
-        <div className="mt-8 border-t pt-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="font-medium">Tournament ballot data</div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleCreateAgg}>
-                Create tournament ballot data
-              </Button>
-              {aggData && (
-                <Button variant="secondary" onClick={() => setShowAggView((v) => !v)}>
-                  {showAggView ? "Hide" : "View"}
-                </Button>
-              )}
+      {ballots.length > 0 && aggData && (
+        <div className="mt-8 border-t pt-4">
+          <div className="border rounded-lg bg-card">
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="font-medium">Tournament ballot data</div>
+              <button
+                type="button"
+                onClick={() => setShowAggView((v) => !v)}
+                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={showAggView ? "Collapse" : "Expand"}
+              >
+                {showAggView ? (
+                  <ChevronUp className="h-5 w-5" />
+                ) : (
+                  <ChevronDown className="h-5 w-5" />
+                )}
+              </button>
             </div>
-          </div>
-          {aggData && showAggView && (
-            <div className="border rounded-lg p-4 space-y-3 bg-card">
-              {aggData.sides.map((side) => (
-                <div key={side.side} className="space-y-2">
-                  <div className="font-semibold">
-                    {side.side === "P" ? "Prosecution Competitors" : "Defense Competitors"}
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="text-muted-foreground">
-                        <tr>
-                          <th className="text-left py-2">Role</th>
-                          <th className="text-left py-2">Name</th>
-                          <th className="text-left py-2">Avg Direct</th>
-                          <th className="text-left py-2">Avg Cross</th>
-                          <th className="text-left py-2">Avg Statement</th>
-                          <th className="text-left py-2">Statement Pickup</th>
-                          <th className="text-left py-2">Cross Pickup</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {side.entries.map((e, idx) => (
-                          <tr key={idx} className="border-t">
-                            <td className="py-2">{e.role}</td>
-                            <td className="py-2">{e.name}</td>
-                            <td className="py-2">{e.avgDirect ?? ""}</td>
-                            <td className="py-2">{e.avgCross ?? ""}</td>
-                            <td className="py-2">{e.avgStatement ?? ""}</td>
-                            <td className="py-2">{e.statementPickup ?? ""}</td>
-                            <td className="py-2">{e.crossPickup ?? ""}</td>
+            <div
+              className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+                showAggView ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+              }`}
+            >
+              <div className="overflow-hidden">
+                <div className="px-4 pb-4 pt-2 space-y-3">
+                {aggData.sides.map((side) => (
+                  <div key={side.side} className="space-y-2">
+                    <div className="font-semibold">
+                      {side.side === "P" ? "Prosecution Competitors" : "Defense Competitors"}
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="text-muted-foreground">
+                          <tr>
+                            <th className="text-left py-2">Role</th>
+                            <th className="text-left py-2">Name</th>
+                            <th className="text-left py-2">Avg Direct</th>
+                            <th className="text-left py-2">Avg Cross</th>
+                            <th className="text-left py-2">Avg Statement</th>
+                            <th className="text-left py-2">Statement Pickup</th>
+                            <th className="text-left py-2">Cross Pickup</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {side.entries.map((e, idx) => (
+                            <tr key={idx} className="border-t">
+                              <td className="py-2">{e.role}</td>
+                              <td className="py-2">{e.name}</td>
+                              <td className="py-2">{e.avgDirect ?? ""}</td>
+                              <td className="py-2">{e.avgCross ?? ""}</td>
+                              <td className="py-2">{e.avgStatement ?? ""}</td>
+                              <td className="py-2">{e.statementPickup ?? ""}</td>
+                              <td className="py-2">{e.crossPickup ?? ""}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  ))}
+                  <div className="flex justify-end">
+                    <Button onClick={handleExportAggCSV}>Export to CSV</Button>
                   </div>
                 </div>
-              ))}
-              <div className="flex justify-end">
-                <Button onClick={handleExportAggCSV}>Export to CSV</Button>
               </div>
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>

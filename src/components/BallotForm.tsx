@@ -3,6 +3,24 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -12,7 +30,6 @@ import { computeTotals } from "@/lib/scoring";
 import { aggregateBallotData } from "@/lib/aggregate-ballot-data";
 import {
   createBallot,
-  getAggregatedDataForTournament,
   getBallotsByTournament,
   saveAggregatedData,
   updateBallot,
@@ -27,7 +44,11 @@ interface ScoreData {
 
 type ScoresState = Record<ScoreKey, ScoreData>;
 
-function buildScoresFromBallot(ballot?: Ballot): ScoresState {
+function buildScoresFromBallot(
+  ballot: Ballot | undefined,
+  roster: Tournament["roster"],
+  ourSide: OurSide,
+): ScoresState {
   const scores: Partial<ScoresState> = {};
 
   // Seed defaults
@@ -42,9 +63,70 @@ function buildScoresFromBallot(ballot?: Ballot): ScoresState {
         name: score.name ?? "ENTER NAME",
       };
     }
+  } else {
+    const keys = ourSide === "P" ? PROSECUTION_KEYS : DEFENSE_KEYS;
+    const sideRoster = ourSide === "P" ? roster.prosecution : roster.defense;
+    const openKey = keys.find((k) => k.includes("Open"));
+    const closeKey = keys.find((k) => k.includes("Close"));
+    const directWitnessKeys = keys.filter((k) => k.includes("Direct") && k.includes("Witness"));
+    const crossWitnessKeys = keys.filter((k) => k.includes("Cross") && k.includes("Witness"));
+
+    if (openKey && sideRoster.attorneys.opener.trim()) {
+      scores[openKey]!.name = sideRoster.attorneys.opener.trim();
+    }
+    if (closeKey && sideRoster.attorneys.closer.trim()) {
+      scores[closeKey]!.name = sideRoster.attorneys.closer.trim();
+    }
+
+    sideRoster.witnesses.forEach((name, index) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      const directKey = directWitnessKeys[index];
+      const crossKey = crossWitnessKeys[index];
+      if (directKey) scores[directKey]!.name = trimmed;
+      if (crossKey) scores[crossKey]!.name = trimmed;
+    });
   }
 
   return scores as ScoresState;
+}
+
+function applyRosterNames(
+  scores: ScoresState,
+  roster: Tournament["roster"],
+  ourSide: OurSide,
+): ScoresState {
+  const next: ScoresState = { ...scores };
+  const keys = ourSide === "P" ? PROSECUTION_KEYS : DEFENSE_KEYS;
+  const sideRoster = ourSide === "P" ? roster.prosecution : roster.defense;
+  const openKey = keys.find((k) => k.includes("Open"));
+  const closeKey = keys.find((k) => k.includes("Close"));
+  const directWitnessKeys = keys.filter((k) => k.includes("Direct") && k.includes("Witness"));
+  const crossWitnessKeys = keys.filter((k) => k.includes("Cross") && k.includes("Witness"));
+
+  const shouldReplace = (value: string) => value.trim() === "" || value === "ENTER NAME";
+
+  if (openKey && sideRoster.attorneys.opener.trim() && shouldReplace(next[openKey].name)) {
+    next[openKey] = { ...next[openKey], name: sideRoster.attorneys.opener.trim() };
+  }
+  if (closeKey && sideRoster.attorneys.closer.trim() && shouldReplace(next[closeKey].name)) {
+    next[closeKey] = { ...next[closeKey], name: sideRoster.attorneys.closer.trim() };
+  }
+
+  sideRoster.witnesses.forEach((name, index) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const directKey = directWitnessKeys[index];
+    const crossKey = crossWitnessKeys[index];
+    if (directKey && shouldReplace(next[directKey].name)) {
+      next[directKey] = { ...next[directKey], name: trimmed };
+    }
+    if (crossKey && shouldReplace(next[crossKey].name)) {
+      next[crossKey] = { ...next[crossKey], name: trimmed };
+    }
+  });
+
+  return next;
 }
 
 interface Props {
@@ -57,6 +139,7 @@ function ScoreRow({
   showName,
   score,
   name,
+  nameOptions,
   onScoreChange,
   onNameChange,
   scoreError,
@@ -68,6 +151,7 @@ function ScoreRow({
   showName: boolean;
   score: number | "";
   name: string;
+  nameOptions?: string[];
   onScoreChange: (value: number | "") => void;
   onNameChange: (value: string) => void;
   scoreError?: string;
@@ -75,6 +159,14 @@ function ScoreRow({
   tabIndexBase: number;
   labelAlign?: "left" | "right";
 }) {
+  const normalizedName = name === "ENTER NAME" ? "" : name;
+  const options = nameOptions ?? [];
+  const optionsWithValue =
+    normalizedName && !options.includes(normalizedName)
+      ? [normalizedName, ...options]
+      : options;
+  const showSelect = showName && optionsWithValue.length > 0;
+
   return (
     <div className="space-y-2 border-b pb-3 last:border-0">
       <Label
@@ -87,15 +179,32 @@ function ScoreRow({
       </Label>
       <div className="grid grid-cols-[minmax(0,1fr),120px] gap-3 items-center">
         <div className="space-y-1">
-          {showName && (
-            <Input
-              placeholder="Name (required)"
-              value={name}
-              onChange={(e) => onNameChange(e.target.value)}
-              tabIndex={tabIndexBase}
-              className={cn("h-10 text-sm", nameError && "border-destructive")}
-            />
-          )}
+          {showName &&
+            (showSelect ? (
+              <Select value={normalizedName || undefined} onValueChange={onNameChange}>
+                <SelectTrigger
+                  tabIndex={tabIndexBase}
+                  className={cn("h-10 text-sm", nameError && "border-destructive")}
+                >
+                  <SelectValue placeholder="Select name" />
+                </SelectTrigger>
+                <SelectContent>
+                  {optionsWithValue.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                placeholder="Name (required)"
+                value={name}
+                onChange={(e) => onNameChange(e.target.value)}
+                tabIndex={tabIndexBase}
+                className={cn("h-10 text-sm", nameError && "border-destructive")}
+              />
+            ))}
           {nameError && <p className="text-xs text-destructive">{nameError}</p>}
         </div>
         <div className="space-y-1">
@@ -131,17 +240,32 @@ function ScoreRow({
 
 function ScoreGrid({
   ourSide,
+  roster,
   scores,
   onScoreChange,
   onNameChange,
   errors,
 }: {
   ourSide: OurSide;
+  roster: Tournament["roster"];
   scores: Record<ScoreKey, ScoreData>;
   onScoreChange: (key: ScoreKey, value: number | "") => void;
   onNameChange: (key: ScoreKey, value: string) => void;
   errors: Record<string, { score?: string; name?: string }>;
 }) {
+  const sideRoster = ourSide === "P" ? roster.prosecution : roster.defense;
+  const attorneyOptions = [
+    sideRoster.attorneys.opener,
+    sideRoster.attorneys.middle,
+    sideRoster.attorneys.closer,
+  ].filter((name) => name.trim().length > 0);
+  const witnessOptions = sideRoster.witnesses.filter((name) => name.trim().length > 0);
+
+  const nameOptionsForKey = (key: ScoreKey): string[] => {
+    if (key.includes("Witness")) return witnessOptions;
+    return attorneyOptions;
+  };
+
   // Build an aligned grid with explicit blank slots on the defense side
   // to match the requested layout.
   const alignedRows: Array<{ pKey?: ScoreKey; dKey?: ScoreKey }> = [
@@ -218,6 +342,7 @@ function ScoreGrid({
                       showName={ourSide === "P"}
                       score={scores[row.pKey].score}
                       name={scores[row.pKey].name}
+                    nameOptions={nameOptionsForKey(row.pKey)}
                       onScoreChange={(val) => onScoreChange(row.pKey!, val)}
                       onNameChange={(val) => onNameChange(row.pKey!, val)}
                       scoreError={errors[row.pKey]?.score}
@@ -236,6 +361,7 @@ function ScoreGrid({
                       showName={ourSide === "D"}
                       score={scores[row.dKey].score}
                       name={scores[row.dKey].name}
+                    nameOptions={nameOptionsForKey(row.dKey)}
                       onScoreChange={(val) => onScoreChange(row.dKey!, val)}
                       onNameChange={(val) => onNameChange(row.dKey!, val)}
                       scoreError={errors[row.dKey]?.score}
@@ -317,6 +443,7 @@ export function BallotForm({ tournament, ballot }: Props) {
   const { toast } = useToast();
 
   const isEdit = Boolean(ballot);
+  const initialSide = ballot?.ourSide ?? "P";
 
   const [roundNumber, setRoundNumber] = useState<number | "">(ballot ? ballot.roundNumber : "");
   const [judgeName, setJudgeName] = useState(ballot?.judgeName ?? "");
@@ -326,8 +453,10 @@ export function BallotForm({ tournament, ballot }: Props) {
   const [defenseTeamNumber, setDefenseTeamNumber] = useState(
     ballot?.defenseTeamNumber ?? "",
   );
-  const [ourSide, setOurSide] = useState<OurSide>(ballot?.ourSide ?? "P");
-  const [scores, setScores] = useState<ScoresState>(() => buildScoresFromBallot(ballot));
+  const [ourSide, setOurSide] = useState<OurSide>(initialSide);
+  const [scores, setScores] = useState<ScoresState>(() =>
+    buildScoresFromBallot(ballot, tournament.roster, initialSide),
+  );
   const [errors, setErrors] = useState<Record<string, { score?: string; name?: string }>>({});
   const [topErrors, setTopErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -339,8 +468,31 @@ export function BallotForm({ tournament, ballot }: Props) {
     setProsecutionTeamNumber(ballot.prosecutionTeamNumber);
     setDefenseTeamNumber(ballot.defenseTeamNumber);
     setOurSide(ballot.ourSide);
-    setScores(buildScoresFromBallot(ballot));
+    setScores(buildScoresFromBallot(ballot, tournament.roster, ballot.ourSide));
   }, [ballot]);
+
+  useEffect(() => {
+    if (ballot) return;
+    setScores((prev) => applyRosterNames(prev, tournament.roster, ourSide));
+  }, [ballot, ourSide, tournament.roster]);
+
+  useEffect(() => {
+    if (ballot) return;
+    const tn = tournament.roster.teamNumber?.trim();
+    if (!tn) return;
+
+    if (ourSide === "P" && !prosecutionTeamNumber.trim()) {
+      setProsecutionTeamNumber(tn);
+    } else if (ourSide === "D" && !defenseTeamNumber.trim()) {
+      setDefenseTeamNumber(tn);
+    }
+  }, [
+    ballot,
+    ourSide,
+    tournament.roster.teamNumber,
+    prosecutionTeamNumber,
+    defenseTeamNumber,
+  ]);
 
   const handleScoreChange = useCallback((key: ScoreKey, value: number | "") => {
     setScores((prev) => ({
@@ -431,9 +583,8 @@ export function BallotForm({ tournament, ballot }: Props) {
     return valid;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
+  const saveBallot = async () => {
+    if (!validate()) return false;
 
     setIsSubmitting(true);
 
@@ -462,12 +613,9 @@ export function BallotForm({ tournament, ballot }: Props) {
 
       if (isEdit && ballot) {
         updateBallot({ id: ballot.id, ...dto });
-        const existingAgg = getAggregatedDataForTournament(tournament.id);
-        if (existingAgg) {
-          const updatedBallots = getBallotsByTournament(tournament.id);
-          const updatedAgg = aggregateBallotData(tournament.id, updatedBallots);
-          saveAggregatedData(updatedAgg);
-        }
+        const updatedBallots = getBallotsByTournament(tournament.id);
+        const updatedAgg = aggregateBallotData(tournament.id, updatedBallots);
+        saveAggregatedData(updatedAgg);
         await saveSharedTournament(tournament.id);
         toast({
           title: "Ballot updated",
@@ -475,12 +623,9 @@ export function BallotForm({ tournament, ballot }: Props) {
         });
       } else {
         createBallot(dto);
-        const existingAgg = getAggregatedDataForTournament(tournament.id);
-        if (existingAgg) {
-          const updatedBallots = getBallotsByTournament(tournament.id);
-          const updatedAgg = aggregateBallotData(tournament.id, updatedBallots);
-          saveAggregatedData(updatedAgg);
-        }
+        const updatedBallots = getBallotsByTournament(tournament.id);
+        const updatedAgg = aggregateBallotData(tournament.id, updatedBallots);
+        saveAggregatedData(updatedAgg);
         await saveSharedTournament(tournament.id);
         toast({
           title: "Ballot saved",
@@ -489,15 +634,34 @@ export function BallotForm({ tournament, ballot }: Props) {
       }
 
       navigate(`/tournaments/${tournament.id}`);
+      return true;
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to save ballot. Please try again.",
         variant: "destructive",
       });
+      return false;
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await saveBallot();
+  };
+
+  const resetToSaved = () => {
+    if (!ballot) return;
+    setRoundNumber(ballot.roundNumber);
+    setJudgeName(ballot.judgeName);
+    setProsecutionTeamNumber(ballot.prosecutionTeamNumber);
+    setDefenseTeamNumber(ballot.defenseTeamNumber);
+    setOurSide(ballot.ourSide);
+    setScores(buildScoresFromBallot(ballot, tournament.roster, ballot.ourSide));
+    setErrors({});
+    setTopErrors({});
   };
 
   return (
@@ -604,6 +768,7 @@ export function BallotForm({ tournament, ballot }: Props) {
           <CardContent>
             <ScoreGrid
               ourSide={ourSide}
+              roster={tournament.roster}
               scores={scores}
               onScoreChange={handleScoreChange}
               onNameChange={handleNameChange}
@@ -617,6 +782,42 @@ export function BallotForm({ tournament, ballot }: Props) {
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? "Saving..." : isEdit ? "Update Ballot" : "Save Ballot"}
           </Button>
+          {isEdit && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button type="button" className="w-full bg-red-600 hover:bg-red-700 text-white">
+                  Discard Changes
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Discard changes?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will discard any edits since the last save.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      resetToSaved();
+                      navigate(`/tournaments/${tournament.id}`);
+                    }}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    Discard Changes
+                  </AlertDialogAction>
+                  <AlertDialogAction
+                    onClick={() => {
+                      void saveBallot();
+                    }}
+                  >
+                    Save Changes & Exit
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </div>
     </form>

@@ -1,10 +1,26 @@
 import type { ScoreKey } from "./constants";
 
+export interface TournamentRosterSide {
+  attorneys: {
+    opener: string;
+    middle: string;
+    closer: string;
+  };
+  witnesses: [string, string, string];
+}
+
+export interface TournamentRoster {
+  teamNumber: string;
+  prosecution: TournamentRosterSide;
+  defense: TournamentRosterSide;
+}
+
 export interface Tournament {
   id: string;
   name: string;
   createdAt: string;
   shareId: string;
+  roster: TournamentRoster;
 }
 
 export type OurSide = "P" | "D";
