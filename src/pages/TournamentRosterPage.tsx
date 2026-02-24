@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { getBallotsByTournament, getTournament, updateTournamentRoster, getBallots, saveAggregatedData } from "@/lib/storage";
+import { getBallotsByTournament, getTournament, updateTournamentRoster, getBallots, replaceBallotsForTournament, saveAggregatedData } from "@/lib/storage";
 import { saveSharedTournament } from "@/lib/share";
 import type { Tournament, TournamentRoster, TournamentRosterSide, Ballot } from "@/lib/types";
 import { aggregateBallotData } from "@/lib/aggregate-ballot-data";
+import { getRosterNameForScoreKey } from "@/lib/roster-names";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -141,27 +142,26 @@ export default function TournamentRosterPage() {
       const allBallots = getBallots();
       const nextBallots: Ballot[] = allBallots.map((b) => {
         if (b.tournamentId !== tournament.id) return b;
+        let ballot: Ballot = { ...b };
         const tn = roster.teamNumber?.trim() ?? "";
-        if (!tn) return b;
-        if (b.ourSide === "P") {
-          return { ...b, prosecutionTeamNumber: tn };
+        if (tn) {
+          if (b.ourSide === "P") ballot = { ...ballot, prosecutionTeamNumber: tn };
+          else if (b.ourSide === "D") ballot = { ...ballot, defenseTeamNumber: tn };
         }
-        if (b.ourSide === "D") {
-          return { ...b, defenseTeamNumber: tn };
-        }
-        return b;
+        ballot = {
+          ...ballot,
+          scores: ballot.scores.map((s) => {
+            if (s.side !== ballot.ourSide) return s;
+            const rosterName = getRosterNameForScoreKey(roster, ballot.ourSide, s.key);
+            if (rosterName === null) return s;
+            return { ...s, name: rosterName };
+          }),
+        };
+        return ballot;
       });
-      const changed = nextBallots.some(
-        (b, i) =>
-          b.tournamentId === tournament.id &&
-          (b.prosecutionTeamNumber !== allBallots[i].prosecutionTeamNumber ||
-            b.defenseTeamNumber !== allBallots[i].defenseTeamNumber),
-      );
-      if (changed) {
-        // persist updated ballots
-        const storage = window.localStorage;
-        storage.setItem("ballots", JSON.stringify(nextBallots));
-        const updatedForTournament = nextBallots.filter((b) => b.tournamentId === tournament.id);
+      const updatedForTournament = nextBallots.filter((b) => b.tournamentId === tournament.id);
+      if (updatedForTournament.length > 0) {
+        replaceBallotsForTournament(tournament.id, updatedForTournament);
         const updatedAgg = aggregateBallotData(tournament.id, updatedForTournament);
         saveAggregatedData(updatedAgg);
       }
