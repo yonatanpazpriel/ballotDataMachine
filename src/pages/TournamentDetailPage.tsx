@@ -132,10 +132,16 @@ export default function TournamentDetailPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">{tournament.name}</h1>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleCopyShareLink}>
+            <Button
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={handleCopyShareLink}
+            >
               Copy Share Link
             </Button>
-            <Button variant="outline" onClick={handleExportCSV}>
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={handleExportCSV}
+            >
               <Download className="h-4 w-4 mr-2" />
               Export CSV
             </Button>
@@ -215,7 +221,9 @@ export default function TournamentDetailPage() {
                   </div>
                   ))}
                   <div className="flex justify-end">
-                    <Button onClick={handleExportAggCSV}>Export to CSV</Button>
+                    <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleExportAggCSV}>
+                    Export to CSV
+                  </Button>
                   </div>
                 </div>
               </div>
