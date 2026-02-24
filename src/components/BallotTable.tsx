@@ -59,6 +59,7 @@ export function BallotTable({ ballots, onDeleteBallot }: Props) {
           {ballots.map((ballot) => {
             const scoreRecord = scoresToRecord(ballot.scores);
             const totals = computeTotals(scoreRecord);
+            const ourSideDiff = ballot.ourSide === "P" ? totals.diff : -totals.diff;
 
             return (
               <TableRow
@@ -90,7 +91,7 @@ export function BallotTable({ ballots, onDeleteBallot }: Props) {
                   </span>
                 </TableCell>
                 <TableCell className="text-right font-mono-scores">
-                  {totals.diff >= 0 ? `+${totals.diff}` : totals.diff}
+                  {ourSideDiff >= 0 ? `+${ourSideDiff}` : ourSideDiff}
                 </TableCell>
                 <TableCell className="text-right text-muted-foreground text-sm">
                   {format(new Date(ballot.createdAt), "MMM d, yyyy")}
