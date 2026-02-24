@@ -9,7 +9,14 @@ import { useToast } from "@/hooks/use-toast";
 import { PROSECUTION_KEYS, DEFENSE_KEYS, type ScoreKey } from "@/lib/constants";
 import type { Tournament, OurSide, CreateBallotDTO, ScoreTotals, Ballot } from "@/lib/types";
 import { computeTotals } from "@/lib/scoring";
-import { createBallot, updateBallot } from "@/lib/storage";
+import { aggregateBallotData } from "@/lib/aggregate-ballot-data";
+import {
+  createBallot,
+  getAggregatedDataForTournament,
+  getBallotsByTournament,
+  saveAggregatedData,
+  updateBallot,
+} from "@/lib/storage";
 import { saveSharedTournament } from "@/lib/share";
 import { cn } from "@/lib/utils";
 
@@ -455,6 +462,12 @@ export function BallotForm({ tournament, ballot }: Props) {
 
       if (isEdit && ballot) {
         updateBallot({ id: ballot.id, ...dto });
+        const existingAgg = getAggregatedDataForTournament(tournament.id);
+        if (existingAgg) {
+          const updatedBallots = getBallotsByTournament(tournament.id);
+          const updatedAgg = aggregateBallotData(tournament.id, updatedBallots);
+          saveAggregatedData(updatedAgg);
+        }
         await saveSharedTournament(tournament.id);
         toast({
           title: "Ballot updated",
@@ -462,6 +475,12 @@ export function BallotForm({ tournament, ballot }: Props) {
         });
       } else {
         createBallot(dto);
+        const existingAgg = getAggregatedDataForTournament(tournament.id);
+        if (existingAgg) {
+          const updatedBallots = getBallotsByTournament(tournament.id);
+          const updatedAgg = aggregateBallotData(tournament.id, updatedBallots);
+          saveAggregatedData(updatedAgg);
+        }
         await saveSharedTournament(tournament.id);
         toast({
           title: "Ballot saved",
