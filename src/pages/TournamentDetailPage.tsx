@@ -164,7 +164,7 @@ export default function TournamentDetailPage() {
         <div className="mt-8 border-t pt-4">
           <div className="border rounded-lg bg-card">
             <div className="flex items-center justify-between px-4 py-3">
-              <div className="font-medium">Tournament ballot data</div>
+              <div className="font-large">Aggregated Ballot Data</div>
               <button
                 type="button"
                 onClick={() => setShowAggView((v) => !v)}

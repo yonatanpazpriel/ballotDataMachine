@@ -51,7 +51,6 @@ export function BallotTable({ ballots, onDeleteBallot }: Props) {
             <TableHead>Judge</TableHead>
             <TableHead>Winner</TableHead>
             <TableHead className="text-right">Diff</TableHead>
-            <TableHead className="text-right">Created</TableHead>
             <TableHead className="w-[140px] text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -92,9 +91,6 @@ export function BallotTable({ ballots, onDeleteBallot }: Props) {
                 </TableCell>
                 <TableCell className="text-right font-mono-scores">
                   {ourSideDiff >= 0 ? `+${ourSideDiff}` : ourSideDiff}
-                </TableCell>
-                <TableCell className="text-right text-muted-foreground text-sm">
-                  {format(new Date(ballot.createdAt), "MMM d, yyyy")}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
