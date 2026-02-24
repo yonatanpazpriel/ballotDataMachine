@@ -121,9 +121,9 @@ export function createTournament(dto: CreateTournamentDTO): Tournament {
 export function deleteTournament(id: string): void {
   const tournaments = getTournaments().filter((t) => t.id !== id);
   saveToStorage(STORAGE_KEY_TOURNAMENTS, tournaments);
-  // Also delete associated ballots
   const ballots = getBallots().filter((b) => b.tournamentId !== id);
   saveToStorage(STORAGE_KEY_BALLOTS, ballots);
+  clearAggregatedDataForTournament(id);
 }
 
 // Ballot operations

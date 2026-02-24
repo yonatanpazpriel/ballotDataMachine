@@ -54,6 +54,11 @@ export async function loadSharedTournament(shareId: string): Promise<SharedTourn
   return data.data as SharedTournamentBlob;
 }
 
+export async function deleteSharedTournament(shareId: string): Promise<void> {
+  if (!supabase) return;
+  await supabase.from("shared_tournaments").delete().eq("share_id", shareId);
+}
+
 export function applySharedTournamentBlob(blob: SharedTournamentBlob): void {
   upsertTournament(blob.tournament);
   replaceBallotsForTournament(blob.tournament.id, blob.ballots);

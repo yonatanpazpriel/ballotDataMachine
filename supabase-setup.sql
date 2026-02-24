@@ -21,3 +21,8 @@ create policy "shared_tournaments_update"
   for update
   using (true)
   with check (true);
+
+create policy "shared_tournaments_delete"
+  on public.shared_tournaments
+  for delete
+  using (true);
