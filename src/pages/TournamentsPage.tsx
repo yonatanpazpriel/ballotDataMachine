@@ -103,7 +103,7 @@ export default function TournamentsPage() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={(e) => e.preventDefault()}
+                            type="button"
                             aria-label="Delete tournament"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -121,10 +121,7 @@ export default function TournamentsPage() {
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                void handleDelete(tournament);
-                              }}
+                              onClick={() => void handleDelete(tournament)}
                             >
                               Delete
                             </AlertDialogAction>
