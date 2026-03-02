@@ -54,7 +54,7 @@ export default function TournamentsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Tournaments</h1>
           <p className="text-muted-foreground mt-1">
-            go cmt 🐻
+            enjoy! :)
           </p>
         </div>
         <Button onClick={() => setIsModalOpen(true)}>
