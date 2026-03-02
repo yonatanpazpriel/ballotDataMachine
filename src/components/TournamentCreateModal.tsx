@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,9 +11,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createTournament } from "@/lib/storage";
-import { saveSharedTournament } from "@/lib/share";
+import { useAuth } from "@/contexts/AuthContext";
+import { createTournamentInSupabase } from "@/lib/supabase-storage";
 import type { Tournament } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
 
 const schema = z.object({
   name: z.string().min(1, "Tournament name is required").max(100),
@@ -29,6 +29,8 @@ interface Props {
 }
 
 export function TournamentCreateModal({ open, onOpenChange, onCreated }: Props) {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const {
     register,
     handleSubmit,
@@ -39,11 +41,18 @@ export function TournamentCreateModal({ open, onOpenChange, onCreated }: Props) 
   });
 
   const onSubmit = async (data: FormData) => {
-    const tournament = createTournament({ name: data.name.trim() });
-    await saveSharedTournament(tournament.id);
-    reset();
-    onCreated(tournament);
-    onOpenChange(false);
+    if (!user?.id) return;
+    try {
+      const tournament = await createTournamentInSupabase(
+        { name: data.name.trim() },
+        user.id
+      );
+      reset();
+      onCreated(tournament);
+      onOpenChange(false);
+    } catch {
+      toast({ title: "Failed to create tournament", variant: "destructive" });
+    }
   };
 
   return (

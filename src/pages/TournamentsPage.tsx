@@ -23,18 +23,30 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { TournamentCreateModal } from "@/components/TournamentCreateModal";
-import { getTournaments, deleteTournament } from "@/lib/storage";
-import { deleteSharedTournament } from "@/lib/share";
+import { getTournamentsForUser, deleteTournamentInSupabase } from "@/lib/supabase-storage";
 import type { Tournament } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
 export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
 
+  const fetchTournaments = async () => {
+    setLoading(true);
+    try {
+      const data = await getTournamentsForUser();
+      setTournaments(data);
+    } catch {
+      toast({ title: "Failed to load tournaments", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    setTournaments(getTournaments());
+    void fetchTournaments();
   }, []);
 
   const handleCreated = (tournament: Tournament) => {
@@ -42,10 +54,13 @@ export default function TournamentsPage() {
   };
 
   const handleDelete = async (tournament: Tournament) => {
-    deleteTournament(tournament.id);
-    await deleteSharedTournament(tournament.shareId);
-    setTournaments(getTournaments());
-    toast({ title: "Tournament deleted" });
+    try {
+      await deleteTournamentInSupabase(tournament.id, tournament.shareId);
+      setTournaments((prev) => prev.filter((t) => t.id !== tournament.id));
+      toast({ title: "Tournament deleted" });
+    } catch {
+      toast({ title: "Failed to delete tournament", variant: "destructive" });
+    }
   };
 
   return (
@@ -63,7 +78,11 @@ export default function TournamentsPage() {
         </Button>
       </div>
 
-      {tournaments.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-16 border rounded-lg bg-card">
+          <p className="text-muted-foreground">Loading tournaments...</p>
+        </div>
+      ) : tournaments.length === 0 ? (
         <div className="text-center py-16 border rounded-lg bg-card">
           <p className="text-muted-foreground mb-4">No tournaments yet</p>
           <Button onClick={() => setIsModalOpen(true)}>

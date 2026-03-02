@@ -4,14 +4,13 @@ import { Plus, Download, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { BallotTable } from "@/components/BallotTable";
 import {
-  getTournament,
-  getBallotsByTournament,
-  getAggregatedDataForTournament,
-  saveAggregatedData,
-  deleteBallot,
-  clearAggregatedDataForTournament,
-} from "@/lib/storage";
-import { saveSharedTournament } from "@/lib/share";
+  getTournamentById,
+  getBallotsByTournamentInSupabase,
+  getAggregatedDataForTournamentInSupabase,
+  saveAggregatedDataInSupabase,
+  deleteBallotInSupabase,
+  clearAggregatedDataForTournamentInSupabase,
+} from "@/lib/supabase-storage";
 import { exportBallotsToCSV, downloadCSV } from "@/lib/csv-export";
 import { aggregateBallotData, aggregatedDataToCSV } from "@/lib/aggregate-ballot-data";
 import type { Tournament, Ballot, AggregatedBallotData } from "@/lib/types";
@@ -25,24 +24,40 @@ export default function TournamentDetailPage() {
   const [ballots, setBallots] = useState<Ballot[]>([]);
   const [aggData, setAggData] = useState<AggregatedBallotData | null>(null);
   const [showAggView, setShowAggView] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
-    const t = getTournament(id);
-    if (!t) {
-      navigate("/tournaments");
-      return;
-    }
-    setTournament(t);
-    const currentBallots = getBallotsByTournament(id);
-    setBallots(currentBallots);
-    let agg = getAggregatedDataForTournament(id);
-    if (currentBallots.length > 0 && !agg) {
-      agg = aggregateBallotData(id, currentBallots);
-      saveAggregatedData(agg);
-    }
-    if (agg) setAggData(agg);
-  }, [id, navigate]);
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const t = await getTournamentById(id);
+        if (cancelled) return;
+        if (!t) {
+          navigate("/tournaments");
+          return;
+        }
+        setTournament(t);
+        const currentBallots = await getBallotsByTournamentInSupabase(id);
+        if (cancelled) return;
+        setBallots(currentBallots);
+        let agg = await getAggregatedDataForTournamentInSupabase(id);
+        if (cancelled) return;
+        if (currentBallots.length > 0 && !agg) {
+          agg = aggregateBallotData(id, currentBallots);
+          await saveAggregatedDataInSupabase(agg);
+        }
+        if (agg) setAggData(agg);
+      } catch {
+        if (!cancelled) toast({ title: "Failed to load tournament", variant: "destructive" });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [id, navigate, toast]);
 
   const handleExportCSV = () => {
     if (!tournament) return;
@@ -65,7 +80,7 @@ export default function TournamentDetailPage() {
 
   const handleCopyShareLink = async () => {
     if (!tournament) return;
-    const url = `${window.location.origin}/share/${tournament.shareId}`;
+    const url = `${window.location.origin}/tournaments/${tournament.id}`;
     try {
       await navigator.clipboard.writeText(url);
       toast({ title: "Share link copied" });
@@ -87,20 +102,18 @@ export default function TournamentDetailPage() {
   const handleDeleteBallot = async (ballotId: string) => {
     if (!id) return;
     try {
-      deleteBallot(ballotId);
-      const updatedBallots = getBallotsByTournament(id);
+      await deleteBallotInSupabase(ballotId);
+      const updatedBallots = await getBallotsByTournamentInSupabase(id);
       setBallots(updatedBallots);
 
       if (updatedBallots.length > 0) {
         const updatedAgg = aggregateBallotData(id, updatedBallots);
-        saveAggregatedData(updatedAgg);
+        await saveAggregatedDataInSupabase(updatedAgg);
         setAggData(updatedAgg);
       } else {
-        clearAggregatedDataForTournament(id);
+        await clearAggregatedDataForTournamentInSupabase(id);
         setAggData(null);
       }
-
-      await saveSharedTournament(id);
 
       toast({
         title: "Ballot deleted",
@@ -115,8 +128,12 @@ export default function TournamentDetailPage() {
     }
   };
 
-  if (!tournament) {
-    return null;
+  if (loading || !tournament) {
+    return (
+      <div className="container py-8">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
   }
 
   return (

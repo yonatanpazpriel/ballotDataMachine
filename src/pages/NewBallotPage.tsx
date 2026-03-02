@@ -2,26 +2,33 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { BallotForm } from "@/components/BallotForm";
-import { getTournament } from "@/lib/storage";
+import { getTournamentById } from "@/lib/supabase-storage";
 import type { Tournament } from "@/lib/types";
 
 export default function NewBallotPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
-    const t = getTournament(id);
-    if (!t) {
-      navigate("/tournaments");
-      return;
-    }
-    setTournament(t);
+    let cancelled = false;
+    getTournamentById(id).then((t) => {
+      if (cancelled) return;
+      if (!t) navigate("/tournaments");
+      else setTournament(t);
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
   }, [id, navigate]);
 
-  if (!tournament) {
-    return null;
+  if (loading || !tournament) {
+    return (
+      <div className="container py-8">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
   }
 
   return (

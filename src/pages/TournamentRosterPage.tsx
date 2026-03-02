@@ -6,8 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { getBallotsByTournament, getTournament, updateTournamentRoster, getBallots, replaceBallotsForTournament, saveAggregatedData } from "@/lib/storage";
-import { saveSharedTournament } from "@/lib/share";
+import {
+  getTournamentById,
+  getBallotsByTournamentInSupabase,
+  updateTournamentRosterInSupabase,
+  updateBallotInSupabase,
+  saveAggregatedDataInSupabase,
+} from "@/lib/supabase-storage";
 import type { Tournament, TournamentRoster, TournamentRosterSide, Ballot } from "@/lib/types";
 import { aggregateBallotData } from "@/lib/aggregate-ballot-data";
 import { getRosterNameForScoreKey } from "@/lib/roster-names";
@@ -119,57 +124,75 @@ export default function TournamentRosterPage() {
 
   useEffect(() => {
     if (!id) return;
-    const t = getTournament(id);
-    if (!t) {
-      navigate("/tournaments");
-      return;
-    }
-    setTournament(t);
-    setRoster(t.roster);
-    const ballots = getBallotsByTournament(id);
-    setHasExistingBallots(ballots.length > 0);
+    let cancelled = false;
+    const load = async () => {
+      const t = await getTournamentById(id);
+      if (cancelled) return;
+      if (!t) {
+        navigate("/tournaments");
+        return;
+      }
+      setTournament(t);
+      setRoster(t.roster);
+      const ballots = await getBallotsByTournamentInSupabase(id);
+      if (cancelled) return;
+      setHasExistingBallots(ballots.length > 0);
+    };
+    void load();
+    return () => { cancelled = true; };
   }, [id, navigate]);
 
   const applyRosterAndMaybeUpdateBallots = async (updateBallots: boolean) => {
     if (!tournament || !roster) return;
-    const updated = updateTournamentRoster(tournament.id, roster);
-    if (!updated) {
-      toast({ title: "Tournament not found", variant: "destructive" });
-      return;
-    }
-
-    if (updateBallots) {
-      const allBallots = getBallots();
-      const nextBallots: Ballot[] = allBallots.map((b) => {
-        if (b.tournamentId !== tournament.id) return b;
-        let ballot: Ballot = { ...b };
-        const tn = roster.teamNumber?.trim() ?? "";
-        if (tn) {
-          if (b.ourSide === "P") ballot = { ...ballot, prosecutionTeamNumber: tn };
-          else if (b.ourSide === "D") ballot = { ...ballot, defenseTeamNumber: tn };
-        }
-        ballot = {
-          ...ballot,
-          scores: ballot.scores.map((s) => {
-            if (s.side !== ballot.ourSide) return s;
-            const rosterName = getRosterNameForScoreKey(roster, ballot.ourSide, s.key);
-            if (rosterName === null) return s;
-            return { ...s, name: rosterName };
-          }),
-        };
-        return ballot;
-      });
-      const updatedForTournament = nextBallots.filter((b) => b.tournamentId === tournament.id);
-      if (updatedForTournament.length > 0) {
-        replaceBallotsForTournament(tournament.id, updatedForTournament);
-        const updatedAgg = aggregateBallotData(tournament.id, updatedForTournament);
-        saveAggregatedData(updatedAgg);
+    try {
+      const updated = await updateTournamentRosterInSupabase(tournament.id, roster);
+      if (!updated) {
+        toast({ title: "Tournament not found", variant: "destructive" });
+        return;
       }
-    }
 
-    await saveSharedTournament(tournament.id);
-    toast({ title: "Rosters saved" });
-    navigate(`/tournaments/${tournament.id}`);
+      if (updateBallots) {
+        const ballots = await getBallotsByTournamentInSupabase(tournament.id);
+        const tn = roster.teamNumber?.trim() ?? "";
+        const updatedBallots: Ballot[] = [];
+        for (const b of ballots) {
+          let ballot: Ballot = { ...b };
+          if (tn) {
+            if (b.ourSide === "P") ballot = { ...ballot, prosecutionTeamNumber: tn };
+            else if (b.ourSide === "D") ballot = { ...ballot, defenseTeamNumber: tn };
+          }
+          ballot = {
+            ...ballot,
+            scores: ballot.scores.map((s) => {
+              if (s.side !== ballot.ourSide) return s;
+              const rosterName = getRosterNameForScoreKey(roster, ballot.ourSide, s.key);
+              if (rosterName === null) return s;
+              return { ...s, name: rosterName };
+            }),
+          };
+          updatedBallots.push(ballot);
+          await updateBallotInSupabase({
+            id: ballot.id,
+            tournamentId: ballot.tournamentId,
+            roundNumber: ballot.roundNumber,
+            judgeName: ballot.judgeName,
+            prosecutionTeamNumber: ballot.prosecutionTeamNumber,
+            defenseTeamNumber: ballot.defenseTeamNumber,
+            ourSide: ballot.ourSide,
+            scores: ballot.scores.map(({ ballotId: _b, ...rest }) => rest),
+          });
+        }
+        if (updatedBallots.length > 0) {
+          const updatedAgg = aggregateBallotData(tournament.id, updatedBallots);
+          await saveAggregatedDataInSupabase(updatedAgg);
+        }
+      }
+
+      toast({ title: "Rosters saved" });
+      navigate(`/tournaments/${tournament.id}`);
+    } catch {
+      toast({ title: "Failed to save rosters", variant: "destructive" });
+    }
   };
 
   const handleSave = () => {

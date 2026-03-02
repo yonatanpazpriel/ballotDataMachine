@@ -29,12 +29,11 @@ import type { Tournament, OurSide, CreateBallotDTO, ScoreTotals, Ballot } from "
 import { computeTotals } from "@/lib/scoring";
 import { aggregateBallotData } from "@/lib/aggregate-ballot-data";
 import {
-  createBallot,
-  getBallotsByTournament,
-  saveAggregatedData,
-  updateBallot,
-} from "@/lib/storage";
-import { saveSharedTournament } from "@/lib/share";
+  createBallotInSupabase,
+  getBallotsByTournamentInSupabase,
+  saveAggregatedDataInSupabase,
+  updateBallotInSupabase,
+} from "@/lib/supabase-storage";
 import { cn } from "@/lib/utils";
 
 interface ScoreData {
@@ -612,21 +611,19 @@ export function BallotForm({ tournament, ballot }: Props) {
       };
 
       if (isEdit && ballot) {
-        updateBallot({ id: ballot.id, ...dto });
-        const updatedBallots = getBallotsByTournament(tournament.id);
+        await updateBallotInSupabase({ id: ballot.id, ...dto });
+        const updatedBallots = await getBallotsByTournamentInSupabase(tournament.id);
         const updatedAgg = aggregateBallotData(tournament.id, updatedBallots);
-        saveAggregatedData(updatedAgg);
-        await saveSharedTournament(tournament.id);
+        await saveAggregatedDataInSupabase(updatedAgg);
         toast({
           title: "Ballot updated",
           description: `Round ${roundNumber} ballot updated successfully.`,
         });
       } else {
-        createBallot(dto);
-        const updatedBallots = getBallotsByTournament(tournament.id);
+        await createBallotInSupabase(dto);
+        const updatedBallots = await getBallotsByTournamentInSupabase(tournament.id);
         const updatedAgg = aggregateBallotData(tournament.id, updatedBallots);
-        saveAggregatedData(updatedAgg);
-        await saveSharedTournament(tournament.id);
+        await saveAggregatedDataInSupabase(updatedAgg);
         toast({
           title: "Ballot saved",
           description: `Round ${roundNumber} ballot saved successfully.`,

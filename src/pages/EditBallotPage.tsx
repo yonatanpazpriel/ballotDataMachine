@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { BallotForm } from "@/components/BallotForm";
-import { getBallot, getTournament } from "@/lib/storage";
+import { getBallotById, getTournamentById } from "@/lib/supabase-storage";
 import type { Tournament, Ballot } from "@/lib/types";
 
 export default function EditBallotPage() {
@@ -10,21 +10,31 @@ export default function EditBallotPage() {
   const navigate = useNavigate();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [ballot, setBallot] = useState<Ballot | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id || !ballotId) return;
-    const t = getTournament(id);
-    const b = getBallot(ballotId);
-    if (!t || !b || b.tournamentId !== id) {
-      navigate("/tournaments");
-      return;
-    }
-    setTournament(t);
-    setBallot(b);
+    let cancelled = false;
+    Promise.all([getTournamentById(id), getBallotById(ballotId)]).then(
+      ([t, b]) => {
+        if (cancelled) return;
+        if (!t || !b || b.tournamentId !== id) navigate("/tournaments");
+        else {
+          setTournament(t);
+          setBallot(b);
+        }
+        setLoading(false);
+      }
+    );
+    return () => { cancelled = true; };
   }, [id, ballotId, navigate]);
 
-  if (!tournament || !ballot) {
-    return null;
+  if (loading || !tournament || !ballot) {
+    return (
+      <div className="container py-8">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
   }
 
   return (
