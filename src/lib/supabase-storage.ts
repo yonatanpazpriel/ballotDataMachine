@@ -71,20 +71,43 @@ export async function getTournamentsForUser(): Promise<Tournament[]> {
   if (!supabase) return [];
 
   const { data, error } = await supabase
-    .from("tournaments")
+    .from("user_tournament_access")
     .select(
       `
-      id,
-      share_id,
-      name,
-      created_at,
-      roster
+      tournament_id,
+      tournaments (
+        id,
+        share_id,
+        name,
+        created_at,
+        roster
+      )
     `
-    )
-    .order("created_at", { ascending: false });
+    );
 
   if (error) throw error;
-  return (data ?? []).map(rowToTournament);
+
+  const rows = (data ?? []) as Array<{
+    tournament_id: string;
+    tournaments: {
+      id: string;
+      share_id: string;
+      name: string;
+      created_at: string;
+      roster: unknown;
+    } | null;
+  }>;
+
+  const tournaments = rows
+    .map((row) => row.tournaments)
+    .filter((t): t is NonNullable<typeof t> => t != null)
+    .map(rowToTournament)
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+  return tournaments;
 }
 
 export async function getTournamentById(id: string): Promise<Tournament | null> {
