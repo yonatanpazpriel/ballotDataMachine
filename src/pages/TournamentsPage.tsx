@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Plus, ChevronRight, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ import type { Tournament } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
 export default function TournamentsPage() {
+  const navigate = useNavigate();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -102,11 +103,16 @@ export default function TournamentsPage() {
             </TableHeader>
             <TableBody>
               {tournaments.map((tournament) => (
-                <TableRow key={tournament.id}>
+                <TableRow
+                  key={tournament.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => navigate(`/tournaments/${tournament.id}`)}
+                >
                   <TableCell>
                     <Link
                       to={`/tournaments/${tournament.id}`}
                       className="font-medium hover:underline"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       {tournament.name}
                     </Link>
@@ -114,7 +120,7 @@ export default function TournamentsPage() {
                   <TableCell className="text-right text-muted-foreground">
                     {format(new Date(tournament.createdAt), "MMM d, yyyy")}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       <AlertDialog>
                         <AlertDialogTrigger asChild>

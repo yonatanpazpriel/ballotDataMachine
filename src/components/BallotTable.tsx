@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
 import {
   Table,
@@ -31,6 +31,8 @@ interface Props {
 }
 
 export function BallotTable({ ballots, onDeleteBallot }: Props) {
+  const navigate = useNavigate();
+
   if (ballots.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -63,7 +65,13 @@ export function BallotTable({ ballots, onDeleteBallot }: Props) {
             return (
               <TableRow
                 key={ballot.id}
-                className={ballot.ourSide === "P" ? "bg-red-50" : "bg-blue-50"}
+                className={cn(
+                  "cursor-pointer hover:opacity-90",
+                  ballot.ourSide === "P" ? "bg-red-50" : "bg-blue-50"
+                )}
+                onClick={() =>
+                  navigate(`/tournaments/${ballot.tournamentId}/ballots/${ballot.id}/edit`)
+                }
               >
                 <TableCell className="font-mono-scores font-medium">
                   {ballot.roundNumber}
@@ -92,7 +100,7 @@ export function BallotTable({ ballots, onDeleteBallot }: Props) {
                 <TableCell className="text-right font-mono-scores">
                   {ourSideDiff >= 0 ? `+${ourSideDiff}` : ourSideDiff}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-end gap-2">
                     <Button
                       asChild
