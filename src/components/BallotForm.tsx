@@ -184,7 +184,7 @@ function ScoreRow({
       >
         {scoreKey}
       </Label>
-      <div className="grid grid-cols-[minmax(0,2fr),minmax(0,1.5fr),120px] gap-3 items-center">
+      <div className="grid grid-cols-[minmax(0,2.5fr),minmax(10rem,2fr),120px] gap-3 items-center">
         <div className="space-y-1">
           {showName &&
             (showSelect ? (

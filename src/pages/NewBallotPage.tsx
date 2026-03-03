@@ -32,7 +32,7 @@ export default function NewBallotPage() {
   }
 
   return (
-    <div className="container py-8 max-w-5xl">
+    <div className="container py-8 max-w-7xl">
       <div className="mb-6">
         <Link
           to={`/tournaments/${tournament.id}`}
