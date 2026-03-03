@@ -113,7 +113,11 @@ function extractNamesByRole(ballot: Ballot): {
   return { opener, closer, middle, witnessOrder };
 }
 
-function ingestScores(ballots: Ballot[], side: OurSide) {
+function ingestScores(
+  ballots: Ballot[],
+  side: OurSide,
+  witnessCharactersByName: Record<string, Set<string>>,
+) {
   const stats: Record<string, StatBuckets> = {};
   const opponent = getOpposingSide(side);
 
@@ -139,6 +143,15 @@ function ingestScores(ballots: Ballot[], side: OurSide) {
       else if (cls === "statement") bucket.statement.push(s.score);
       else if (cls === "witness-direct") bucket.witnessDirect.push(s.score);
       else if (cls === "witness-cross") bucket.witnessCross.push(s.score);
+
+      const isWitnessKey = cls === "witness-direct" || cls === "witness-cross";
+      if (isWitnessKey && s.character) {
+        const name = s.name!;
+        if (!witnessCharactersByName[name]) {
+          witnessCharactersByName[name] = new Set<string>();
+        }
+        witnessCharactersByName[name].add(s.character);
+      }
     }
 
     if (openerScore && openerPickup !== null) {
@@ -177,8 +190,12 @@ function ingestScores(ballots: Ballot[], side: OurSide) {
   return stats;
 }
 
-function buildRoles(ballots: Ballot[], side: OurSide): RoleResult[] {
-  const stats = ingestScores(ballots, side);
+function buildRoles(
+  ballots: Ballot[],
+  side: OurSide,
+  witnessCharactersByName: Record<string, Set<string>>,
+): RoleResult[] {
+  const stats = ingestScores(ballots, side, witnessCharactersByName);
   const roles: RoleResult[] = [];
 
   const sideBallots = getSideBallots(ballots, side);
@@ -227,23 +244,37 @@ function roleLabel(index: number): string {
   return "";
 }
 
-function toEntries(roles: RoleResult[]): AggregatedEntry[] {
-  return roles.map((r, idx) => ({
-    role: roleLabel(idx),
-    name: r.name || "",
-    avgDirect: idx >= 3 ? average(r.stats.witnessDirect) : average(r.stats.direct),
-    avgCross: idx >= 3 ? average(r.stats.witnessCross) : average(r.stats.cross),
-    avgStatement: idx === 0 || idx === 2 ? average(r.stats.statement) : undefined,
-    statementPickup: idx === 0 || idx === 2 ? average(r.stats.statementDiffs) : undefined,
-    crossPickup: average(r.stats.crossDiffs),
-  }));
+function toEntries(
+  roles: RoleResult[],
+  witnessCharactersByName: Record<string, Set<string>>,
+): AggregatedEntry[] {
+  return roles.map((r, idx) => {
+    const isWitnessRole = idx >= 3;
+    const charactersSet = witnessCharactersByName[r.name];
+    const witnessesPortrayed =
+      isWitnessRole && charactersSet && charactersSet.size > 0
+        ? Array.from(charactersSet).sort().join(", ")
+        : undefined;
+
+    return {
+      role: roleLabel(idx),
+      name: r.name || "",
+      avgDirect: isWitnessRole ? average(r.stats.witnessDirect) : average(r.stats.direct),
+      avgCross: isWitnessRole ? average(r.stats.witnessCross) : average(r.stats.cross),
+      avgStatement: idx === 0 || idx === 2 ? average(r.stats.statement) : undefined,
+      statementPickup: idx === 0 || idx === 2 ? average(r.stats.statementDiffs) : undefined,
+      crossPickup: average(r.stats.crossDiffs),
+      witnessesPortrayed,
+    };
+  });
 }
 
 export function aggregateBallotData(tournamentId: string, ballots: Ballot[]): AggregatedBallotData {
   const sides: OurSide[] = ["P", "D"];
   const sideData = sides.map((side) => {
-    const roles = buildRoles(ballots, side);
-    return { side, entries: toEntries(roles) };
+    const witnessCharactersByName: Record<string, Set<string>> = {};
+    const roles = buildRoles(ballots, side, witnessCharactersByName);
+    return { side, entries: toEntries(roles, witnessCharactersByName) };
   });
 
   return {
@@ -254,7 +285,17 @@ export function aggregateBallotData(tournamentId: string, ballots: Ballot[]): Ag
 }
 
 export function aggregatedDataToCSV(data: AggregatedBallotData): string {
-  const headers = ["side", "role", "name", "avgDirect", "avgCross", "avgStatement", "statementPickup", "crossPickup"];
+  const headers = [
+    "side",
+    "role",
+    "name",
+    "avgDirect",
+    "avgCross",
+    "avgStatement",
+    "statementPickup",
+    "crossPickup",
+    "witnessesPortrayed",
+  ];
   const rows: string[] = [];
   for (const side of data.sides) {
     for (const entry of side.entries) {
@@ -268,6 +309,7 @@ export function aggregatedDataToCSV(data: AggregatedBallotData): string {
           entry.avgStatement ?? "",
           entry.statementPickup ?? "",
           entry.crossPickup ?? "",
+          entry.witnessesPortrayed ?? "",
         ]
           .map((v) => `${v}`)
           .join(","),

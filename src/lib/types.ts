@@ -31,6 +31,7 @@ export interface BallotScore {
   key: ScoreKey;
   score: number;
   name: string | null;
+  character?: string | null;
 }
 
 export interface Ballot {
@@ -80,6 +81,7 @@ export interface AggregatedEntry {
   avgStatement?: number;
   statementPickup?: number;
   crossPickup?: number;
+   witnessesPortrayed?: string;
 }
 
 export interface AggregatedBallotData {

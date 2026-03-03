@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 interface ScoreData {
   score: number | "";
   name: string;
+  character?: string | null;
 }
 
 type ScoresState = Record<ScoreKey, ScoreData>;
@@ -52,7 +53,7 @@ function buildScoresFromBallot(
 
   // Seed defaults
   for (const key of [...PROSECUTION_KEYS, ...DEFENSE_KEYS]) {
-    scores[key] = { score: 0, name: "ENTER NAME" };
+    scores[key] = { score: 0, name: "ENTER NAME", character: null };
   }
 
   if (ballot) {
@@ -60,6 +61,7 @@ function buildScoresFromBallot(
       scores[score.key] = {
         score: score.score,
         name: score.name ?? "ENTER NAME",
+        character: score.character ?? null,
       };
     }
   } else {
@@ -138,9 +140,12 @@ function ScoreRow({
   showName,
   score,
   name,
+  character,
+  characterOptions,
   nameOptions,
   onScoreChange,
   onNameChange,
+  onCharacterChange,
   scoreError,
   nameError,
   tabIndexBase,
@@ -150,9 +155,12 @@ function ScoreRow({
   showName: boolean;
   score: number | "";
   name: string;
+  character?: string | null;
+  characterOptions?: string[];
   nameOptions?: string[];
   onScoreChange: (value: number | "") => void;
   onNameChange: (value: string) => void;
+  onCharacterChange?: (value: string | null) => void;
   scoreError?: string;
   nameError?: string;
   tabIndexBase: number;
@@ -176,7 +184,7 @@ function ScoreRow({
       >
         {scoreKey}
       </Label>
-      <div className="grid grid-cols-[minmax(0,1fr),120px] gap-3 items-center">
+      <div className="grid grid-cols-[minmax(0,2fr),minmax(0,1.5fr),120px] gap-3 items-center">
         <div className="space-y-1">
           {showName &&
             (showSelect ? (
@@ -205,6 +213,25 @@ function ScoreRow({
               />
             ))}
           {nameError && <p className="text-xs text-destructive">{nameError}</p>}
+        </div>
+        <div className="space-y-1">
+          {characterOptions && onCharacterChange && (
+            <Select
+              value={character ?? undefined}
+              onValueChange={(val) => onCharacterChange(val || null)}
+            >
+              <SelectTrigger className="h-10 text-sm">
+                <SelectValue placeholder="Witness character" />
+              </SelectTrigger>
+              <SelectContent>
+                {characterOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
         <div className="space-y-1">
           <Input
@@ -243,6 +270,7 @@ function ScoreGrid({
   scores,
   onScoreChange,
   onNameChange,
+  onCharacterChange,
   errors,
 }: {
   ourSide: OurSide;
@@ -250,6 +278,7 @@ function ScoreGrid({
   scores: Record<ScoreKey, ScoreData>;
   onScoreChange: (key: ScoreKey, value: number | "") => void;
   onNameChange: (key: ScoreKey, value: string) => void;
+  onCharacterChange: (key: ScoreKey, value: string | null) => void;
   errors: Record<string, { score?: string; name?: string }>;
 }) {
   const sideRoster = ourSide === "P" ? roster.prosecution : roster.defense;
@@ -263,6 +292,55 @@ function ScoreGrid({
   const nameOptionsForKey = (key: ScoreKey): string[] => {
     if (key.includes("Witness")) return witnessOptions;
     return attorneyOptions;
+  };
+
+  const prosecutionWitnessCharacters = [
+    "Taren Rivera",
+    "Atlas Hartley",
+    "Riley Kaye",
+    "Rowan Patel",
+    "Taylor Jha",
+    "Nel Doos",
+    "Indigo Quade",
+    "Lennox Reynolds",
+  ];
+
+  const defenseWitnessCharacters = [
+    "Taylor Jha",
+    "Nel Doos",
+    "Indigo Quade",
+    "Lennox Reynolds",
+    "Micah Lin",
+    "Grey Marlowe",
+    "Charlie Martin",
+  ];
+
+  const witnessCharacterOptionsForKey = (key: ScoreKey): string[] | undefined => {
+    const isWitness = key.includes("Witness");
+    if (!isWitness) return undefined;
+    const side = key.startsWith("P.") ? "P" : key.startsWith("D.") ? "D" : null;
+    if (side === "P") return prosecutionWitnessCharacters;
+    if (side === "D") return defenseWitnessCharacters;
+    return undefined;
+  };
+
+  const syncWitnessCharacter = (key: ScoreKey, value: string | null) => {
+    onCharacterChange(key, value);
+    const pairs: Array<[ScoreKey, ScoreKey]> = [
+      ["P. Direct 1: Witness", "P. Cross  1: Witness"],
+      ["P. Direct 2: Witness", "P. Cross  2: Witness"],
+      ["P. Direct 3: Witness", "P. Cross  3: Witness"],
+      ["D. Direct 1: Witness", "D. Cross 1: Witness"],
+      ["D. Direct 2: Witness", "D. Cross 2: Witness"],
+      ["D. Direct 3: Witness", "D. Cross 3: Witness"],
+    ];
+    for (const [a, b] of pairs) {
+      if (key === a) {
+        onCharacterChange(b as ScoreKey, value);
+      } else if (key === b) {
+        onCharacterChange(a as ScoreKey, value);
+      }
+    }
   };
 
   // Build an aligned grid with explicit blank slots on the defense side
@@ -341,9 +419,12 @@ function ScoreGrid({
                       showName={ourSide === "P"}
                       score={scores[row.pKey].score}
                       name={scores[row.pKey].name}
-                    nameOptions={nameOptionsForKey(row.pKey)}
+                      character={scores[row.pKey].character ?? null}
+                      characterOptions={witnessCharacterOptionsForKey(row.pKey)}
+                      nameOptions={nameOptionsForKey(row.pKey)}
                       onScoreChange={(val) => onScoreChange(row.pKey!, val)}
                       onNameChange={(val) => onNameChange(row.pKey!, val)}
+                      onCharacterChange={(val) => syncWitnessCharacter(row.pKey!, val)}
                       scoreError={errors[row.pKey]?.score}
                       nameError={errors[row.pKey]?.name}
                       tabIndexBase={pTab!}
@@ -360,9 +441,12 @@ function ScoreGrid({
                       showName={ourSide === "D"}
                       score={scores[row.dKey].score}
                       name={scores[row.dKey].name}
-                    nameOptions={nameOptionsForKey(row.dKey)}
+                      character={scores[row.dKey].character ?? null}
+                      characterOptions={witnessCharacterOptionsForKey(row.dKey)}
+                      nameOptions={nameOptionsForKey(row.dKey)}
                       onScoreChange={(val) => onScoreChange(row.dKey!, val)}
                       onNameChange={(val) => onNameChange(row.dKey!, val)}
+                      onCharacterChange={(val) => syncWitnessCharacter(row.dKey!, val)}
                       scoreError={errors[row.dKey]?.score}
                       nameError={errors[row.dKey]?.name}
                       tabIndexBase={dTab!}
@@ -524,6 +608,13 @@ export function BallotForm({ tournament, ballot }: Props) {
     });
   }, []);
 
+  const handleCharacterChange = useCallback((key: ScoreKey, value: string | null) => {
+    setScores((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], character: value },
+    }));
+  }, []);
+
   // Live totals
   const totals = useMemo(() => {
     const scoreRecord: Record<ScoreKey, number> = {} as Record<ScoreKey, number>;
@@ -597,6 +688,7 @@ export function BallotForm({ tournament, ballot }: Props) {
           key,
           score: scores[key].score as number,
           name: isOurSideKey ? scores[key].name : null,
+          character: scores[key].character ?? null,
         };
       });
 
@@ -769,6 +861,7 @@ export function BallotForm({ tournament, ballot }: Props) {
               scores={scores}
               onScoreChange={handleScoreChange}
               onNameChange={handleNameChange}
+              onCharacterChange={handleCharacterChange}
               errors={errors}
             />
           </CardContent>

@@ -44,7 +44,13 @@ export default function TournamentDetailPage() {
         setBallots(currentBallots);
         let agg = await getAggregatedDataForTournamentInSupabase(id);
         if (cancelled) return;
-        if (currentBallots.length > 0 && !agg) {
+        const needsRecompute =
+          currentBallots.length > 0 &&
+          (!agg ||
+            agg.sides.some((side) =>
+              side.entries.some((e) => e.witnessesPortrayed === undefined),
+            ));
+        if (needsRecompute) {
           agg = aggregateBallotData(id, currentBallots);
           await saveAggregatedDataInSupabase(agg);
         }
@@ -213,6 +219,7 @@ export default function TournamentDetailPage() {
                           <tr>
                             <th className="text-left py-2">Role</th>
                             <th className="text-left py-2">Name</th>
+                            <th className="text-left py-2">Witnesses portrayed</th>
                             <th className="text-left py-2">Avg Direct</th>
                             <th className="text-left py-2">Avg Cross</th>
                             <th className="text-left py-2">Avg Statement</th>
@@ -225,6 +232,7 @@ export default function TournamentDetailPage() {
                             <tr key={idx} className="border-t">
                               <td className="py-2">{e.role}</td>
                               <td className="py-2">{e.name}</td>
+                              <td className="py-2">{e.witnessesPortrayed ?? ""}</td>
                               <td className="py-2">{e.avgDirect ?? ""}</td>
                               <td className="py-2">{e.avgCross ?? ""}</td>
                               <td className="py-2">{e.avgStatement ?? ""}</td>
