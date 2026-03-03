@@ -40,7 +40,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm rounded-xl border bg-card/50 shadow-sm p-6 sm:p-8 space-y-4 text-center">
         <h1 className="text-xl font-semibold">Sign in to get started</h1>
         <p className="text-muted-foreground text-sm">
-          Sign in with Google to create, edit and sharetournament ballot data.
+          Sign in with Google to create, edit and share tournament ballot data.
         </p>
         <Button size="lg" className="w-full" onClick={() => void signInWithGoogle()}>
           Sign in with Google
