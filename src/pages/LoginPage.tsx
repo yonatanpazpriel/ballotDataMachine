@@ -29,20 +29,23 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-8 p-4">
-      <div className="flex items-center gap-2">
-        <Scale className="h-8 w-8" />
-        <span className="text-xl font-semibold">Mock Trial Ballot Machine</span>
+    <div className="min-h-screen flex flex-col items-center pt-20 sm:pt-28 gap-12 p-4">
+      <div className="flex items-center gap-3">
+        <Scale className="h-12 w-12 sm:h-14 sm:w-14 text-primary shrink-0" />
+        <span className="text-4xl sm:text-5xl font-bold tracking-tight">
+          Mock Trial Ballot Data Machine
+        </span>
+        <Scale className="h-12 w-12 sm:h-14 sm:w-14 text-primary shrink-0" />
       </div>
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl font-semibold">Sign in to get started</h1>
-        <p className="text-muted-foreground max-w-sm">
-          Sign in with Google to view and manage your tournament ballots.
+      <div className="w-full max-w-sm rounded-xl border bg-card/50 shadow-sm p-6 sm:p-8 space-y-4 text-center">
+        <h1 className="text-xl font-semibold">Sign in to get started</h1>
+        <p className="text-muted-foreground text-sm">
+          Sign in with Google to create, edit and sharetournament ballot data.
         </p>
+        <Button size="lg" className="w-full" onClick={() => void signInWithGoogle()}>
+          Sign in with Google
+        </Button>
       </div>
-      <Button size="lg" onClick={() => void signInWithGoogle()}>
-        Sign in with Google
-      </Button>
     </div>
   );
 }

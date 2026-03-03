@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { Plus, Download, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Download, ArrowLeft, ChevronDown, ChevronUp, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BallotTable } from "@/components/BallotTable";
 import {
@@ -159,6 +159,7 @@ export default function TournamentDetailPage() {
               className="bg-amber-500 hover:bg-amber-600 text-white"
               onClick={handleCopyShareLink}
             >
+              <LinkIcon className="h-4 w-4 mr-2" />
               Copy Share Link
             </Button>
             <Button
