@@ -49,6 +49,9 @@ create table if not exists public.ballots (
   scores jsonb not null default '[]'::jsonb
 );
 
+alter table public.ballots
+  add column if not exists ranks jsonb not null default '[]'::jsonb;
+
 create table if not exists public.user_tournament_access (
   user_id uuid not null references auth.users(id) on delete cascade,
   tournament_id uuid not null references public.tournaments(id) on delete cascade,

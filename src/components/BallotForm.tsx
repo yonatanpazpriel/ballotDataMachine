@@ -25,7 +25,15 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { PROSECUTION_KEYS, DEFENSE_KEYS, type ScoreKey } from "@/lib/constants";
-import type { Tournament, OurSide, CreateBallotDTO, ScoreTotals, Ballot } from "@/lib/types";
+import type {
+  Tournament,
+  OurSide,
+  CreateBallotDTO,
+  ScoreTotals,
+  Ballot,
+  RankChoice,
+  BallotRank,
+} from "@/lib/types";
 import { computeTotals } from "@/lib/scoring";
 import { aggregateBallotData } from "@/lib/aggregate-ballot-data";
 import {
@@ -43,6 +51,48 @@ interface ScoreData {
 }
 
 type ScoresState = Record<ScoreKey, ScoreData>;
+
+type LocalRankChoice = RankChoice;
+
+interface RanksState {
+  attorneys: LocalRankChoice[];
+  witnesses: LocalRankChoice[];
+}
+
+const RANK_OPTIONS: { value: LocalRankChoice; label: string }[] = [
+  { value: "rank1", label: "Ranked 1st" },
+  { value: "rank2", label: "Ranked 2nd" },
+  { value: "rank3", label: "Ranked 3rd" },
+  { value: "rank4", label: "Ranked 4th" },
+  { value: "not_ranked", label: "Not Ranked" },
+];
+
+function emptyRanksState(): RanksState {
+  return {
+    attorneys: ["not_ranked", "not_ranked", "not_ranked"],
+    witnesses: ["not_ranked", "not_ranked", "not_ranked"],
+  };
+}
+
+function buildRanksFromBallot(ballot: Ballot | undefined): RanksState {
+  const base = emptyRanksState();
+  if (!ballot || !ballot.ranks) return base;
+
+  const byKey = new Map<string, LocalRankChoice>();
+  for (const r of ballot.ranks) {
+    const key = `${r.roleType}-${r.order}`;
+    byKey.set(key, r.value as LocalRankChoice);
+  }
+
+  for (let i = 0; i < 3; i++) {
+    const atty = byKey.get(`attorney-${i}`);
+    if (atty) base.attorneys[i] = atty;
+    const wit = byKey.get(`witness-${i}`);
+    if (wit) base.witnesses[i] = wit;
+  }
+
+  return base;
+}
 
 function buildScoresFromBallot(
   ballot: Ballot | undefined,
@@ -540,6 +590,7 @@ export function BallotForm({ tournament, ballot }: Props) {
   const [scores, setScores] = useState<ScoresState>(() =>
     buildScoresFromBallot(ballot, tournament.roster, initialSide),
   );
+  const [ranks, setRanks] = useState<RanksState>(() => buildRanksFromBallot(ballot));
   const [errors, setErrors] = useState<Record<string, { score?: string; name?: string }>>({});
   const [topErrors, setTopErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -552,6 +603,7 @@ export function BallotForm({ tournament, ballot }: Props) {
     setDefenseTeamNumber(ballot.defenseTeamNumber);
     setOurSide(ballot.ourSide);
     setScores(buildScoresFromBallot(ballot, tournament.roster, ballot.ourSide));
+    setRanks(buildRanksFromBallot(ballot));
   }, [ballot]);
 
   useEffect(() => {
@@ -624,6 +676,25 @@ export function BallotForm({ tournament, ballot }: Props) {
     return computeTotals(scoreRecord);
   }, [scores]);
 
+  const sideRoster = useMemo(
+    () => (ourSide === "P" ? tournament.roster.prosecution : tournament.roster.defense),
+    [ourSide, tournament.roster],
+  );
+
+  const attorneyNames = useMemo(
+    () => [
+      sideRoster.attorneys.opener ?? "",
+      sideRoster.attorneys.middle ?? "",
+      sideRoster.attorneys.closer ?? "",
+    ],
+    [sideRoster.attorneys],
+  );
+
+  const witnessNames = useMemo(
+    () => [...sideRoster.witnesses],
+    [sideRoster.witnesses],
+  );
+
   const validate = (): boolean => {
     const newErrors: Record<string, { score?: string; name?: string }> = {};
     const newTopErrors: Record<string, string> = {};
@@ -692,6 +763,28 @@ export function BallotForm({ tournament, ballot }: Props) {
         };
       });
 
+      const ranksPayload: BallotRank[] = [];
+      attorneyNames.forEach((name, index) => {
+        const trimmed = name?.trim();
+        if (!trimmed) return;
+        ranksPayload.push({
+          name: trimmed,
+          roleType: "attorney",
+          order: index,
+          value: ranks.attorneys[index] ?? "not_ranked",
+        });
+      });
+      witnessNames.forEach((name, index) => {
+        const trimmed = name?.trim();
+        if (!trimmed) return;
+        ranksPayload.push({
+          name: trimmed,
+          roleType: "witness",
+          order: index,
+          value: ranks.witnesses[index] ?? "not_ranked",
+        });
+      });
+
       const dto: CreateBallotDTO = {
         tournamentId: tournament.id,
         roundNumber: roundNumber as number,
@@ -700,6 +793,7 @@ export function BallotForm({ tournament, ballot }: Props) {
         defenseTeamNumber: defenseTeamNumber.trim(),
         ourSide,
         scores: ballotScores,
+        ranks: ranksPayload,
       };
 
       if (isEdit && ballot) {
@@ -864,6 +958,95 @@ export function BallotForm({ tournament, ballot }: Props) {
               onCharacterChange={handleCharacterChange}
               errors={errors}
             />
+
+            <div className="mt-8 border-t pt-4 space-y-4">
+              <div>
+                <h3 className="text-base font-semibold">Ranks</h3>
+                <p className="text-xs text-muted-foreground">
+                  Rank your three attorneys and three witnesses for this ballot.
+                </p>
+              </div>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                    Attorneys
+                  </h4>
+                  {attorneyNames.map((name, index) => {
+                    const trimmed = name?.trim();
+                    if (!trimmed) return null;
+                    return (
+                      <div
+                        key={`attorney-${index}`}
+                        className="flex items-center justify-between gap-3"
+                      >
+                        <span className="text-sm truncate">{trimmed}</span>
+                        <Select
+                          value={ranks.attorneys[index]}
+                          onValueChange={(val: LocalRankChoice) =>
+                            setRanks((prev) => ({
+                              ...prev,
+                              attorneys: prev.attorneys.map((v, i) =>
+                                i === index ? val : v,
+                              ) as LocalRankChoice[],
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="h-8 w-36 text-xs">
+                            <SelectValue placeholder="Rank" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {RANK_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide text-right">
+                    Witnesses
+                  </h4>
+                  {witnessNames.map((name, index) => {
+                    const trimmed = name?.trim();
+                    if (!trimmed) return null;
+                    return (
+                      <div
+                        key={`witness-${index}`}
+                        className="flex items-center justify-between gap-3"
+                      >
+                        <span className="text-sm truncate">{trimmed}</span>
+                        <Select
+                          value={ranks.witnesses[index]}
+                          onValueChange={(val: LocalRankChoice) =>
+                            setRanks((prev) => ({
+                              ...prev,
+                              witnesses: prev.witnesses.map((v, i) =>
+                                i === index ? val : v,
+                              ) as LocalRankChoice[],
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="h-8 w-36 text-xs">
+                            <SelectValue placeholder="Rank" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {RANK_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

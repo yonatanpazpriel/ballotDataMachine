@@ -48,7 +48,9 @@ export default function TournamentDetailPage() {
           currentBallots.length > 0 &&
           (!agg ||
             agg.sides.some((side) =>
-              side.entries.some((e) => e.witnessesPortrayed === undefined),
+              side.entries.some(
+                (e) => e.witnessesPortrayed === undefined || e.ranksScore === undefined,
+              ),
             ));
         if (needsRecompute) {
           agg = aggregateBallotData(id, currentBallots);
@@ -226,6 +228,7 @@ export default function TournamentDetailPage() {
                             <th className="text-left py-2">Avg Statement</th>
                             <th className="text-left py-2">Statement Pickup</th>
                             <th className="text-left py-2">Cross Pickup</th>
+                            <th className="text-left py-2">Ranks</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -239,6 +242,7 @@ export default function TournamentDetailPage() {
                               <td className="py-2">{e.avgStatement ?? ""}</td>
                               <td className="py-2">{e.statementPickup ?? ""}</td>
                               <td className="py-2">{e.crossPickup ?? ""}</td>
+                              <td className="py-2">{e.ranksScore ?? ""}</td>
                             </tr>
                           ))}
                         </tbody>

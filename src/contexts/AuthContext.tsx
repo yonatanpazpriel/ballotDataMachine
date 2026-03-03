@@ -32,10 +32,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      if (event === "SIGNED_IN" && session?.user) {
+        const user = session.user;
+
+        void (async () => {
+          const { count } = await supabase
+            .from("tournaments")
+            .select("id", { count: "exact", head: true })
+            .eq("owner_id", user.id);
+
+          await supabase.from("login_events").insert({
+            user_id: user.id,
+            email: user.email ?? "",
+            tournaments_count: count ?? 0,
+          });
+        })();
+      }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {

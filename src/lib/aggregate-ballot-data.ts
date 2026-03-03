@@ -1,5 +1,11 @@
 import { PROSECUTION_KEYS, DEFENSE_KEYS } from "./constants";
-import type { Ballot, BallotScore, AggregatedBallotData, AggregatedEntry, OurSide } from "./types";
+import type {
+  Ballot,
+  BallotScore,
+  AggregatedBallotData,
+  AggregatedEntry,
+  OurSide,
+} from "./types";
 
 type KeyClassifier = "direct" | "cross" | "statement" | "witness-direct" | "witness-cross" | "other";
 
@@ -247,6 +253,7 @@ function roleLabel(index: number): string {
 function toEntries(
   roles: RoleResult[],
   witnessCharactersByName: Record<string, Set<string>>,
+  rankPointsByName: Record<string, { points: number; maxPoints: number }>,
 ): AggregatedEntry[] {
   return roles.map((r, idx) => {
     const isWitnessRole = idx >= 3;
@@ -255,6 +262,10 @@ function toEntries(
       isWitnessRole && charactersSet && charactersSet.size > 0
         ? Array.from(charactersSet).sort().join(", ")
         : undefined;
+
+    const rank = rankPointsByName[r.name];
+    const ranksScore =
+      rank && rank.maxPoints > 0 ? `${rank.points}/${rank.maxPoints}` : undefined;
 
     return {
       role: roleLabel(idx),
@@ -265,8 +276,39 @@ function toEntries(
       statementPickup: idx === 0 || idx === 2 ? average(r.stats.statementDiffs) : undefined,
       crossPickup: average(r.stats.crossDiffs),
       witnessesPortrayed,
+      ranksScore,
     };
   });
+}
+
+function computeRankPoints(
+  ballots: Ballot[],
+  side: OurSide,
+): Record<string, { points: number; maxPoints: number }> {
+  const byName: Record<string, { points: number; maxPoints: number }> = {};
+
+  for (const ballot of getSideBallots(ballots, side)) {
+    const ranks = ballot.ranks ?? [];
+    for (const rankEntry of ranks) {
+      const name = rankEntry.name?.trim();
+      if (!name) continue;
+      if (!byName[name]) {
+        byName[name] = { points: 0, maxPoints: 0 };
+      }
+
+      let pts = 0;
+      if (rankEntry.value === "rank1") pts = 5;
+      else if (rankEntry.value === "rank2") pts = 4;
+      else if (rankEntry.value === "rank3") pts = 3;
+      else if (rankEntry.value === "rank4") pts = 2;
+      // not_ranked => 0
+
+      byName[name].points += pts;
+      byName[name].maxPoints += 5;
+    }
+  }
+
+  return byName;
 }
 
 export function aggregateBallotData(tournamentId: string, ballots: Ballot[]): AggregatedBallotData {
@@ -274,7 +316,8 @@ export function aggregateBallotData(tournamentId: string, ballots: Ballot[]): Ag
   const sideData = sides.map((side) => {
     const witnessCharactersByName: Record<string, Set<string>> = {};
     const roles = buildRoles(ballots, side, witnessCharactersByName);
-    return { side, entries: toEntries(roles, witnessCharactersByName) };
+    const rankPointsByName = computeRankPoints(ballots, side);
+    return { side, entries: toEntries(roles, witnessCharactersByName, rankPointsByName) };
   });
 
   return {
@@ -295,6 +338,7 @@ export function aggregatedDataToCSV(data: AggregatedBallotData): string {
     "statementPickup",
     "crossPickup",
     "witnessesPortrayed",
+    "ranks",
   ];
   const rows: string[] = [];
   for (const side of data.sides) {
@@ -310,6 +354,7 @@ export function aggregatedDataToCSV(data: AggregatedBallotData): string {
           entry.statementPickup ?? "",
           entry.crossPickup ?? "",
           entry.witnessesPortrayed ?? "",
+          entry.ranksScore ?? "",
         ]
           .map((v) => `${v}`)
           .join(","),

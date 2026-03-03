@@ -2,6 +2,7 @@ import type {
   Tournament,
   TournamentRoster,
   Ballot,
+  BallotRank,
   CreateTournamentDTO,
   CreateBallotDTO,
   UpdateBallotDTO,
@@ -50,8 +51,10 @@ function rowToBallot(row: {
   our_side: "P" | "D";
   created_at: string;
   scores: unknown;
+  ranks?: unknown;
 }): Ballot {
   const scores = Array.isArray(row.scores) ? row.scores : [];
+  const ranks = Array.isArray(row.ranks) ? (row.ranks as BallotRank[]) : [];
   return {
     id: row.id,
     tournamentId: row.tournament_id,
@@ -64,6 +67,7 @@ function rowToBallot(row: {
     scores: scores.map((s: { ballotId?: string }) =>
       s.ballotId ? s : { ...s, ballotId: row.id }
     ),
+    ranks,
   };
 }
 
@@ -227,6 +231,7 @@ export async function createBallotInSupabase(dto: CreateBallotDTO): Promise<Ball
       defense_team_number: dto.defenseTeamNumber,
       our_side: dto.ourSide,
       scores: dto.scores,
+      ranks: dto.ranks ?? [],
     })
     .select("*")
     .single();
@@ -250,6 +255,7 @@ export async function updateBallotInSupabase(dto: UpdateBallotDTO): Promise<Ball
       defense_team_number: dto.defenseTeamNumber,
       our_side: dto.ourSide,
       scores,
+      ranks: dto.ranks ?? [],
     })
     .eq("id", dto.id)
     .select("*")

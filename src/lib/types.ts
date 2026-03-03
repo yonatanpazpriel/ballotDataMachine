@@ -34,6 +34,15 @@ export interface BallotScore {
   character?: string | null;
 }
 
+export type RankChoice = "rank1" | "rank2" | "rank3" | "rank4" | "not_ranked";
+
+export interface BallotRank {
+  name: string;
+  roleType: "attorney" | "witness";
+  order: number;
+  value: RankChoice;
+}
+
 export interface Ballot {
   id: string;
   tournamentId: string;
@@ -44,6 +53,7 @@ export interface Ballot {
   ourSide: OurSide;
   createdAt: string;
   scores: BallotScore[];
+  ranks?: BallotRank[];
 }
 
 export interface ScoreTotals {
@@ -67,6 +77,7 @@ export interface CreateBallotDTO {
   defenseTeamNumber: string;
   ourSide: OurSide;
   scores: Omit<BallotScore, "ballotId">[];
+  ranks?: BallotRank[];
 }
 
 export interface UpdateBallotDTO extends CreateBallotDTO {
@@ -81,7 +92,8 @@ export interface AggregatedEntry {
   avgStatement?: number;
   statementPickup?: number;
   crossPickup?: number;
-   witnessesPortrayed?: string;
+  witnessesPortrayed?: string;
+  ranksScore?: string;
 }
 
 export interface AggregatedBallotData {
